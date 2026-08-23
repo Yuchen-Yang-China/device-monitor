@@ -116,6 +116,32 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.contentViewController = nil
     }
 
+    func popoverDidShow(_ notification: Notification) {
+        // AppKit promotes the first SwiftUI Button to first responder when a
+        // popover becomes key. That leaves the first metric row with a focus
+        // ring before the user has interacted with the dashboard. Clear only
+        // this initial responder; the buttons remain focusable for keyboard
+        // navigation and VoiceOver.
+        clearInitialPopoverFocus()
+    }
+
+    private func clearInitialPopoverFocus() {
+        guard popover.isShown, let window = popover.contentViewController?.view.window else { return }
+        window.makeFirstResponder(nil)
+
+        // SwiftUI may install its default focus one run-loop turn after the
+        // AppKit delegate callback. Repeat after that hand-off if necessary.
+        DispatchQueue.main.async { [weak self] in
+            guard
+                let self,
+                self.popover.isShown,
+                let window = self.popover.contentViewController?.view.window,
+                window.isVisible
+            else { return }
+            window.makeFirstResponder(nil)
+        }
+    }
+
     private func observeChanges() {
         store.$snapshot
             .receive(on: RunLoop.main)

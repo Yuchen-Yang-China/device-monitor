@@ -25,7 +25,10 @@ extern IOHIDEventRef IOHIDServiceClientCopyEvent(IOHIDServiceClientRef service, 
 extern CFTypeRef IOHIDServiceClientCopyProperty(IOHIDServiceClientRef service, CFStringRef key) __attribute__((weak_import));
 extern IOHIDFloat IOHIDEventGetFloatValue(IOHIDEventRef event, int32_t field) __attribute__((weak_import));
 extern IOHIDEventSystemClientRef IOHIDEventSystemClientCreate(CFAllocatorRef allocator) __attribute__((weak_import));
-extern int IOHIDEventSystemClientSetMatching(IOHIDEventSystemClientRef client, CFDictionaryRef matching) __attribute__((weak_import));
+// The private SPI has no public SDK declaration. Its ABI returns void; treating
+// the post-call register value as an int makes every successful call look like
+// a failure on arm64 and prevents service enumeration.
+extern void IOHIDEventSystemClientSetMatching(IOHIDEventSystemClientRef client, CFDictionaryRef matching) __attribute__((weak_import));
 extern CFArrayRef IOHIDEventSystemClientCopyServices(IOHIDEventSystemClientRef client) __attribute__((weak_import));
 
 static void initialize_snapshot(MMTemperatureSnapshot *snapshot) {
@@ -88,11 +91,7 @@ int MMReadTemperatures(MMTemperatureSnapshot *snapshot) {
         CFRelease(matching);
         return 0;
     }
-    if (IOHIDEventSystemClientSetMatching(client, matching) != 0) {
-        CFRelease(matching);
-        CFRelease(client);
-        return 0;
-    }
+    IOHIDEventSystemClientSetMatching(client, matching);
     CFRelease(matching);
 
     CFArrayRef services = IOHIDEventSystemClientCopyServices(client);

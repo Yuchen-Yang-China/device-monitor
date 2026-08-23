@@ -60,13 +60,14 @@ enum ThermalState: String {
         switch self {
         case .nominal: return .normal
         case .fair: return .elevated
-        case .serious, .critical: return .critical
+        case .serious: return .elevated
+        case .critical: return .critical
         case .unavailable: return .unavailable
         }
     }
 }
 
-struct CPUReading {
+struct CPUReading: Equatable {
     var utilization: Double?
     var userPercent: Double?
     var systemPercent: Double?
@@ -86,7 +87,7 @@ struct CPUReading {
     }
 }
 
-struct MemoryReading {
+struct MemoryReading: Equatable {
     var usedBytes: UInt64?
     var totalBytes: UInt64
     var wiredBytes: UInt64?
@@ -116,7 +117,7 @@ struct MemoryReading {
     }
 }
 
-struct ThermalReading {
+struct ThermalReading: Equatable {
     var state: ThermalState
     var socCelsius: Double?
     var hottestSoCCelsius: Double?
@@ -139,29 +140,51 @@ struct ThermalReading {
     }
 
     var level: MetricLevel {
-        guard let socCelsius else { return .unavailable }
-
-        let temperatureLevel: MetricLevel
-        if socCelsius >= 90 {
-            temperatureLevel = .critical
-        } else if socCelsius >= 75 {
-            temperatureLevel = .elevated
-        } else {
-            temperatureLevel = .normal
+        // The OS thermal state remains meaningful when the optional sensor
+        // bridge is unavailable. Sensor thresholds are deliberately evaluated
+        // independently so a hot spot cannot be hidden by an average reading.
+        var result = state.level
+        if let socCelsius, socCelsius.isFinite {
+            result = Self.moreSevere(result, Self.temperatureLevel(socCelsius, elevated: 75, critical: 90))
         }
+        if let hottestSoCCelsius, hottestSoCCelsius.isFinite {
+            result = Self.moreSevere(result, Self.temperatureLevel(hottestSoCCelsius, elevated: 85, critical: 100))
+        }
+        if let ssdCelsius, ssdCelsius.isFinite {
+            result = Self.moreSevere(result, Self.temperatureLevel(ssdCelsius, elevated: 70, critical: 85))
+        }
+        return result
+    }
 
-        if state.level == .critical || temperatureLevel == .critical { return .critical }
-        if state.level == .elevated || temperatureLevel == .elevated { return .elevated }
+    private static func temperatureLevel(_ value: Double, elevated: Double, critical: Double) -> MetricLevel {
+        if value >= critical { return .critical }
+        if value >= elevated { return .elevated }
         return .normal
+    }
+
+    private static func moreSevere(_ lhs: MetricLevel, _ rhs: MetricLevel) -> MetricLevel {
+        func severity(_ level: MetricLevel) -> Int {
+            switch level {
+            case .critical: return 3
+            case .elevated: return 2
+            case .normal: return 1
+            case .sampling, .unavailable, .stale: return 0
+            }
+        }
+        return severity(rhs) > severity(lhs) ? rhs : lhs
     }
 }
 
-struct NetworkReading {
+struct NetworkReading: Equatable {
     var uploadBytesPerSecond: Double?
     var downloadBytesPerSecond: Double?
     var sessionUploadBytes: UInt64
     var sessionDownloadBytes: UInt64
     var wifi: WiFiReading?
+    /// Time of the last successfully-derived network rate. A stale reading
+    /// retains the last value for continuity but must not be charted as new.
+    var capturedAt: Date? = nil
+    var isStale: Bool = false
 
     var uploadShortText: String { ByteFormatter.rateShort(uploadBytesPerSecond) }
     var downloadShortText: String { ByteFormatter.rateShort(downloadBytesPerSecond) }
@@ -188,7 +211,7 @@ struct ProcessUsage: Identifiable, Equatable {
     var memoryText: String { ByteFormatter.memory(memoryBytes) }
 }
 
-struct SystemSnapshot {
+struct SystemSnapshot: Equatable {
     var capturedAt: Date
     var cpu: CPUReading
     var memory: MemoryReading
@@ -246,10 +269,16 @@ struct SystemSnapshot {
     var processSampledAt: Date?
 }
 
-struct TrendPoint: Identifiable {
-    let id = UUID()
+struct TrendPoint: Identifiable, Equatable {
+    let id: Date
     let date: Date
     let value: Double
+
+    init(date: Date, value: Double) {
+        self.id = date
+        self.date = date
+        self.value = value
+    }
 }
 
 enum MetricKind: String, Identifiable, CaseIterable {
@@ -333,9 +362,9 @@ enum SamplingProfile: String, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .balanced: return "Network 1s · system 5s · temperature 15s"
-        case .lowPower: return "Network 2s · system 10s · temperature 30s"
-        case .responsive: return "Network 1s · system 2s · temperature 10s"
+        case .balanced: return "Network 1s · system 5s · temperature 15s · details 30s"
+        case .lowPower: return "Network 2s · system 10s · temperature 30s · details 60s"
+        case .responsive: return "Network 1s · system 2s · temperature 10s · details 15s"
         }
     }
 
@@ -361,6 +390,22 @@ enum SamplingProfile: String, CaseIterable, Identifiable {
         case .responsive: return 10
         }
     }
+
+    var processInterval: TimeInterval {
+        switch self {
+        case .balanced: return 30
+        case .lowPower: return 60
+        case .responsive: return 15
+        }
+    }
+
+    var wifiInterval: TimeInterval {
+        switch self {
+        case .balanced: return 30
+        case .lowPower: return 60
+        case .responsive: return 15
+        }
+    }
 }
 
 @MainActor
@@ -376,28 +421,43 @@ final class MonitorStore: ObservableObject {
     private var lastCPUTrendSample: Date?
     private var lastMemoryTrendSample: Date?
     private var lastThermalTrendSample: Date?
+    private var lastUploadTrendSample: Date?
+    private var lastDownloadTrendSample: Date?
 
     func apply(_ newSnapshot: SystemSnapshot) {
         snapshot = newSnapshot
-        let date = newSnapshot.capturedAt
 
-        if let value = newSnapshot.cpu.utilization, newSnapshot.cpu.capturedAt != lastCPUTrendSample {
-            append(TrendPoint(date: date, value: value), to: &cpuTrend)
-            lastCPUTrendSample = newSnapshot.cpu.capturedAt
+        if let value = newSnapshot.cpu.utilization,
+           let capturedAt = newSnapshot.cpu.capturedAt,
+           capturedAt != lastCPUTrendSample {
+            append(TrendPoint(date: capturedAt, value: value), to: &cpuTrend)
+            lastCPUTrendSample = capturedAt
         }
-        if let value = newSnapshot.memory.usedRatio, newSnapshot.memory.capturedAt != lastMemoryTrendSample {
-            append(TrendPoint(date: date, value: value * 100), to: &memoryTrend)
-            lastMemoryTrendSample = newSnapshot.memory.capturedAt
+        if let value = newSnapshot.memory.usedRatio,
+           let capturedAt = newSnapshot.memory.capturedAt,
+           capturedAt != lastMemoryTrendSample {
+            append(TrendPoint(date: capturedAt, value: value * 100), to: &memoryTrend)
+            lastMemoryTrendSample = capturedAt
         }
-        if let value = newSnapshot.thermal.socCelsius, newSnapshot.thermal.capturedAt != lastThermalTrendSample {
-            append(TrendPoint(date: date, value: value), to: &thermalTrend)
-            lastThermalTrendSample = newSnapshot.thermal.capturedAt
+        if let value = newSnapshot.thermal.socCelsius,
+           let capturedAt = newSnapshot.thermal.capturedAt,
+           capturedAt != lastThermalTrendSample {
+            append(TrendPoint(date: capturedAt, value: value), to: &thermalTrend)
+            lastThermalTrendSample = capturedAt
         }
-        if let value = newSnapshot.network.uploadBytesPerSecond {
-            append(TrendPoint(date: date, value: value), to: &uploadTrend)
+        if !newSnapshot.network.isStale,
+           let value = newSnapshot.network.uploadBytesPerSecond,
+           let capturedAt = newSnapshot.network.capturedAt,
+           capturedAt != lastUploadTrendSample {
+            append(TrendPoint(date: capturedAt, value: value), to: &uploadTrend)
+            lastUploadTrendSample = capturedAt
         }
-        if let value = newSnapshot.network.downloadBytesPerSecond {
-            append(TrendPoint(date: date, value: value), to: &downloadTrend)
+        if !newSnapshot.network.isStale,
+           let value = newSnapshot.network.downloadBytesPerSecond,
+           let capturedAt = newSnapshot.network.capturedAt,
+           capturedAt != lastDownloadTrendSample {
+            append(TrendPoint(date: capturedAt, value: value), to: &downloadTrend)
+            lastDownloadTrendSample = capturedAt
         }
     }
 
@@ -462,16 +522,16 @@ enum ByteFormatter {
     }
 
     static func rateShort(_ bytesPerSecond: Double?) -> String {
-        guard let bytesPerSecond else { return "--" }
-        if bytesPerSecond < 1_000 { return "0" }
+        guard let bytesPerSecond, bytesPerSecond.isFinite else { return "--" }
+        if bytesPerSecond <= 0 || bytesPerSecond < 1_000 { return "0" }
         if bytesPerSecond < 1_000_000 { return String(format: "%.1fK", bytesPerSecond / 1_000) }
         if bytesPerSecond < 1_000_000_000 { return String(format: "%.1fM", bytesPerSecond / 1_000_000) }
         return String(format: "%.1fG", bytesPerSecond / 1_000_000_000)
     }
 
     static func rateCompact(_ bytesPerSecond: Double?) -> String {
-        guard let bytesPerSecond else { return "--" }
-        if bytesPerSecond < 1_000 { return "0" }
+        guard let bytesPerSecond, bytesPerSecond.isFinite else { return "--" }
+        if bytesPerSecond <= 0 || bytesPerSecond < 1_000 { return "0" }
         if bytesPerSecond < 1_000_000 { return String(format: "%.0fK", bytesPerSecond / 1_000) }
         if bytesPerSecond < 1_000_000_000 { return String(format: "%.0fM", bytesPerSecond / 1_000_000) }
         return String(format: "%.0fG", bytesPerSecond / 1_000_000_000)
@@ -479,6 +539,7 @@ enum ByteFormatter {
 
     static func rate(_ bytesPerSecond: Double?) -> String {
         guard let bytesPerSecond else { return "Unavailable" }
+        guard bytesPerSecond.isFinite else { return "--" }
         return "\(rateShort(bytesPerSecond))B/s"
     }
 }
@@ -488,31 +549,84 @@ enum TrendMath {
         points.map(\.value)
     }
 
-    static func average(_ points: [TrendPoint]) -> Double? {
-        let values = values(points)
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
+    /// Returns a time-weighted average over observed intervals. The last
+    /// sample is held for the most recently observed interval, inferred from
+    /// the median gap, so a slow sampler is not artificially treated as a
+    /// series of equally spaced points.
+    static func average(_ points: [TrendPoint], now: Date = .now) -> Double? {
+        let sorted = normalized(points)
+        guard !sorted.isEmpty else { return nil }
+        guard sorted.count > 1 else { return sorted[0].value }
+
+        let intervals = observedIntervals(sorted)
+        let fallbackInterval = intervals.sorted()[intervals.count / 2]
+        var weighted = 0.0
+        var duration = 0.0
+        for index in 0..<(sorted.count - 1) {
+            let interval = sorted[index + 1].date.timeIntervalSince(sorted[index].date)
+            guard interval > 0 else { continue }
+            weighted += sorted[index].value * interval
+            duration += interval
+        }
+        if let last = sorted.last {
+            let trailing = max(0, min(now.timeIntervalSince(last.date), fallbackInterval))
+            if trailing > 0 {
+                weighted += last.value * trailing
+                duration += trailing
+            }
+        }
+        guard duration > 0 else { return sorted.map(\.value).reduce(0, +) / Double(sorted.count) }
+        return weighted / duration
     }
 
     static func peak(_ points: [TrendPoint]) -> Double? {
-        values(points).max()
+        normalized(points).map(\.value).max()
     }
 
     static func minimum(_ points: [TrendPoint]) -> Double? {
-        values(points).min()
+        normalized(points).map(\.value).min()
     }
 
     static func cumulativeBytes(_ points: [TrendPoint], now: Date = .now) -> UInt64 {
-        guard points.count > 1 else { return 0 }
-        var total: Double = 0
+        let sorted = normalized(points)
+        guard sorted.count > 1 else { return 0 }
+        let intervals = observedIntervals(sorted)
+        let fallbackInterval = intervals.sorted()[intervals.count / 2]
+        var total = 0.0
+
+        // Network rates are observations for the interval ending at the
+        // sample timestamp. Trapezoidal integration is stable for both rate
+        // changes and sparse samples, without an arbitrary 10-second cap.
+        for index in 0..<(sorted.count - 1) {
+            let duration = sorted[index + 1].date.timeIntervalSince(sorted[index].date)
+            guard duration > 0 else { continue }
+            let first = max(0, sorted[index].value)
+            let second = max(0, sorted[index + 1].value)
+            total += (first + second) * 0.5 * duration
+        }
+        if let last = sorted.last {
+            let trailing = max(0, min(now.timeIntervalSince(last.date), fallbackInterval))
+            total += max(0, last.value) * trailing
+        }
+        let rounded = max(0, total).rounded()
+        guard rounded < Double(UInt64.max) else { return UInt64.max }
+        return UInt64(rounded)
+    }
+
+    private static func normalized(_ points: [TrendPoint]) -> [TrendPoint] {
+        points
+            .filter { $0.value.isFinite }
+            .sorted { $0.date < $1.date }
+    }
+
+    private static func observedIntervals(_ points: [TrendPoint]) -> [TimeInterval] {
+        guard points.count > 1 else { return [1] }
+        var result: [TimeInterval] = []
         for index in 0..<(points.count - 1) {
-            let duration = max(0, min(10, points[index + 1].date.timeIntervalSince(points[index].date)))
-            total += max(0, points[index].value) * duration
+            let interval = points[index + 1].date.timeIntervalSince(points[index].date)
+            if interval > 0, interval.isFinite { result.append(interval) }
         }
-        if let last = points.last {
-            total += max(0, last.value) * max(0, min(2, now.timeIntervalSince(last.date)))
-        }
-        return UInt64(max(0, total).rounded())
+        return result.isEmpty ? [1] : result
     }
 }
 

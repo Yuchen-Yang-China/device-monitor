@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "swift: Build Debug MacMonitor",
+            "type": "shell",
+            "command": "swift",
+            "args": ["build", "-c", "debug"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": ["$swiftc"],
+            "group": {"kind": "build", "isDefault": true}
+        },
+        {
+            "label": "swift: Build Release MacMonitor",
+            "type": "shell",
+            "command": "swift",
+            "args": ["build", "-c", "release"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": ["$swiftc"],
+            "group": "build"
+        }
+    ]
+}

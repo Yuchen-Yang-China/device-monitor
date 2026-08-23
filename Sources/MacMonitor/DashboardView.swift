@@ -7,27 +7,53 @@ struct DashboardView: View {
     let onQuit: () -> Void
     let onDetailDemand: (MetricKind?) -> Void
     @State private var selectedMetric: MetricKind?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private enum Layout {
+        static let popoverWidth: CGFloat = 360
+        static let contentWidth: CGFloat = 336
+        static let overviewHeight: CGFloat = 276
+        static let detailHeight: CGFloat = 376
+        static let padding: CGFloat = 12
+    }
 
     var body: some View {
         Group {
             if let selectedMetric {
-                ScrollView(.vertical, showsIndicators: false) {
+                ScrollView(.vertical, showsIndicators: true) {
                     MetricDetailView(metric: selectedMetric, store: store) {
                         select(nil)
                     }
                     .padding(.bottom, 4)
                 }
-                .frame(height: 360)
-                .transition(.opacity.combined(with: .move(edge: .trailing)))
+                .frame(width: Layout.contentWidth, height: Layout.detailHeight, alignment: .topLeading)
+                .id(selectedMetric)
+                .transition(detailTransition)
             } else {
                 overview
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
+                    .frame(width: Layout.contentWidth, height: Layout.overviewHeight, alignment: .topLeading)
+                    .transition(overviewTransition)
             }
         }
-        .frame(width: 336)
-        .padding(12)
+        .frame(width: Layout.contentWidth, height: selectedMetric == nil ? Layout.overviewHeight : Layout.detailHeight, alignment: .topLeading)
+        .padding(Layout.padding)
+        .frame(
+            width: Layout.popoverWidth,
+            height: (selectedMetric == nil ? Layout.overviewHeight : Layout.detailHeight) + Layout.padding * 2,
+            alignment: .topLeading
+        )
         .background(VisualEffectBackground(material: .popover))
-        .animation(.easeOut(duration: 0.16), value: selectedMetric)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedMetric)
+    }
+
+    private var overviewTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .opacity.combined(with: .move(edge: .leading))
+    }
+
+    private var detailTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .opacity.combined(with: .move(edge: .trailing))
     }
 
     private var overview: some View {
@@ -71,39 +97,45 @@ struct DashboardView: View {
                     HStack {
                         Label("Network", systemImage: MetricKind.network.symbol)
                             .font(.headline)
+                        if store.snapshot.network.isStale {
+                            NetworkFreshnessLabel()
+                        }
                         Spacer()
                     }
                     HStack {
-                        LabeledContent("Upload", value: store.snapshot.network.uploadText)
+                        LabeledContent("Upload", value: store.snapshot.network.overviewUploadText)
                         Spacer()
-                        LabeledContent("Download", value: store.snapshot.network.downloadText)
+                        LabeledContent("Download", value: store.snapshot.network.overviewDownloadText)
                     }
                     .font(.subheadline)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(DashboardRowButtonStyle())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Network")
+            .accessibilityValue(store.snapshot.network.accessibilitySummary)
+            .accessibilityHint("Show detailed network metrics")
 
             HStack {
                 Button(action: onOpenSettings) {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.borderless)
-                .focusable(false)
-                .focusEffectDisabled()
+                .accessibilityLabel("Settings")
+                .accessibilityHint("Open Mac Monitor settings")
                 .help("Settings")
                 Spacer()
                 Button("Quit", action: onQuit)
                     .buttonStyle(.borderless)
-                    .focusable(false)
-                    .focusEffectDisabled()
+                    .accessibilityHint("Quit Mac Monitor")
             }
             .font(.subheadline)
         }
     }
 
     private func select(_ metric: MetricKind?) {
-        withAnimation(.easeOut(duration: 0.16)) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
             selectedMetric = metric
         }
         onDetailDemand(metric)
@@ -131,9 +163,7 @@ private struct OverviewMetricRow: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(value)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
+                    NumericMetricText(value: value)
                     StatusLabel(level: state)
                 }
             }
@@ -141,6 +171,10 @@ private struct OverviewMetricRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(DashboardRowButtonStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(kind.title), \(subtitle)")
+        .accessibilityValue("\(value), \(state.label)")
+        .accessibilityHint("Show detailed \(kind.title) metrics")
     }
 }
 
@@ -153,6 +187,7 @@ struct DashboardRowButtonStyle: ButtonStyle {
 private struct DashboardRowButton: View {
     let configuration: ButtonStyle.Configuration
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         configuration.label
@@ -166,12 +201,15 @@ private struct DashboardRowButton: View {
             )
             .contentShape(Rectangle())
             .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.12)) {
+                guard isHovering != hovering else { return }
+                if reduceMotion {
                     isHovering = hovering
+                } else {
+                    withAnimation(.easeOut(duration: 0.12)) {
+                        isHovering = hovering
+                    }
                 }
             }
-            .focusable(false)
-            .focusEffectDisabled()
     }
 }
 
@@ -187,6 +225,9 @@ struct StatusLabel: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Status")
+        .accessibilityValue(level.label)
     }
 }
 
@@ -202,8 +243,9 @@ struct MetricDetailView: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.borderless)
-                .focusable(false)
-                .focusEffectDisabled()
+                .accessibilityLabel("Back")
+                .accessibilityHint("Return to the system overview")
+                .keyboardShortcut(.escape, modifiers: [])
                 .help("Back")
                 Text(metric.title)
                     .font(.headline)
@@ -215,6 +257,7 @@ struct MetricDetailView: View {
 
             detailContent
         }
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
@@ -379,9 +422,22 @@ struct NetworkDetailContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if reading.isStale {
+                NetworkFreshnessLabel()
+            }
             HStack(spacing: 18) {
-                DirectionHero(symbol: "arrow.up", value: reading.uploadText, color: .systemBlue)
-                DirectionHero(symbol: "arrow.down", value: reading.downloadText, color: .systemTeal)
+                DirectionHero(
+                    symbol: "arrow.up",
+                    value: reading.isStale ? "Out of date" : reading.uploadText,
+                    secondaryValue: reading.uploadLastKnownText,
+                    color: reading.isStale ? .secondaryLabelColor : .systemBlue
+                )
+                DirectionHero(
+                    symbol: "arrow.down",
+                    value: reading.isStale ? "Out of date" : reading.downloadText,
+                    secondaryValue: reading.downloadLastKnownText,
+                    color: reading.isStale ? .secondaryLabelColor : .systemTeal
+                )
             }
             TrendSection(
                 title: "Upload · last 5 minutes",
@@ -426,11 +482,13 @@ struct DetailHero: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(value)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(color)
-                .contentTransition(.numericText())
+            NumericMetricText(
+                value: value,
+                font: .system(size: 28, weight: .semibold, design: .rounded),
+                color: color
+            )
+            .accessibilityLabel(caption)
+            .accessibilityValue(value)
             Text(caption)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -441,18 +499,78 @@ struct DetailHero: View {
 struct DirectionHero: View {
     let symbol: String
     let value: String
+    var secondaryValue: String? = nil
     let color: NSColor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Image(systemName: symbol)
                 .foregroundStyle(Color(nsColor: color))
-            Text(value)
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .contentTransition(.numericText())
+            NumericMetricText(
+                value: value,
+                font: .system(size: 20, weight: .semibold, design: .rounded),
+                color: Color(nsColor: color)
+            )
+                .accessibilityLabel(symbol == "arrow.up" ? "Upload" : "Download")
+                .accessibilityValue(secondaryValue.map { "\(value), last known \($0)" } ?? value)
+            if let secondaryValue {
+                Text("Last known \(secondaryValue)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct NetworkFreshnessLabel: View {
+    var body: some View {
+        Label("Out of date", systemImage: "clock.badge.exclamationmark")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Network status")
+            .accessibilityValue("Out of date")
+    }
+}
+
+private extension NetworkReading {
+    var uploadLastKnownText: String? {
+        guard isStale, uploadBytesPerSecond != nil else { return nil }
+        return uploadText
+    }
+
+    var downloadLastKnownText: String? {
+        guard isStale, downloadBytesPerSecond != nil else { return nil }
+        return downloadText
+    }
+
+    var overviewUploadText: String {
+        staleDisplay(for: uploadText)
+    }
+
+    var overviewDownloadText: String {
+        staleDisplay(for: downloadText)
+    }
+
+    var accessibilitySummary: String {
+        let status: String
+        if isStale {
+            status = "Out of date"
+        } else if uploadBytesPerSecond == nil, downloadBytesPerSecond == nil {
+            status = "Unavailable"
+        } else {
+            status = "Current"
+        }
+        return "Network status \(status). Upload \(overviewUploadText), Download \(overviewDownloadText)"
+    }
+
+    private func staleDisplay(for value: String) -> String {
+        guard isStale else { return value }
+        guard value != "Unavailable", value != "--B/s" else { return "Unavailable" }
+        return "Last \(value)"
     }
 }
 
@@ -489,12 +607,48 @@ struct BreakdownRow: View {
     }
 }
 
+/// Keeps live numeric updates readable without animating every sampling tick.
+/// The numeric transition remains native, but is throttled to one animation per
+/// two seconds and is disabled when Reduce Motion is enabled.
+private struct NumericMetricText: View {
+    let value: String
+    var font: Font = .body
+    var color: Color = .primary
+    var animationInterval: TimeInterval = 2
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animationRevision = 0
+    @State private var lastAnimatedAt = Date.distantPast
+
+    var body: some View {
+        Text(value)
+            .font(font)
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .contentTransition(.numericText())
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.18),
+                value: animationRevision
+            )
+            .onChange(of: value, initial: false) { _, _ in
+                guard !reduceMotion else { return }
+                let now = Date()
+                guard now.timeIntervalSince(lastAnimatedAt) >= animationInterval else { return }
+                lastAnimatedAt = now
+                animationRevision &+= 1
+            }
+    }
+}
+
 struct StatItem: Identifiable {
-    let id = UUID()
+    /// Labels are stable within each stat grid, so they provide a deterministic
+    /// identity across snapshot updates and avoid rebuilding every cell.
+    let id: String
     let label: String
     let value: String
 
-    init(_ label: String, value: String) {
+    init(_ label: String, value: String, id: String? = nil) {
+        self.id = id ?? label
         self.label = label
         self.value = value
     }
@@ -517,6 +671,9 @@ struct StatGrid: View {
                         .truncationMode(.middle)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(item.label)
+                .accessibilityValue(item.value)
             }
         }
     }
@@ -549,6 +706,9 @@ struct ProcessSection: View {
                                 .foregroundStyle(.secondary)
                         }
                         .font(.subheadline)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(process.name)
+                        .accessibilityValue(mode == .cpu ? process.cpuText : process.memoryText)
                     }
                 }
             }
@@ -579,6 +739,9 @@ struct TrendSection: View {
                 .font(.body.weight(.semibold))
             Sparkline(points: points, color: color, range: range)
                 .frame(height: 60)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(title)
+                .accessibilityValue(points.isEmpty ? "Collecting data" : "\(points.count) samples")
             if !stats.isEmpty {
                 StatGrid(items: stats)
             }
@@ -673,8 +836,9 @@ struct SettingsView: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.borderless)
-                .focusable(false)
-                .focusEffectDisabled()
+                .accessibilityLabel("Back")
+                .accessibilityHint("Return to the monitor overview")
+                .keyboardShortcut(.escape, modifiers: [])
                 .help("Back")
                 Text("Settings")
                     .font(.headline)

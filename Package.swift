@@ -25,6 +25,11 @@ let package = Package(
                 .linkedFramework("SystemConfiguration"),
                 .linkedFramework("CoreWLAN")
             ]
+        ),
+        .testTarget(
+            name: "MacMonitorTests",
+            dependencies: ["MacMonitor"],
+            path: "Tests/MacMonitorTests"
         )
     ]
 )

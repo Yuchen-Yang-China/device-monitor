@@ -18,12 +18,15 @@ typedef float IOHIDFloat;
 #define MM_IOHID_EVENT_TYPE_TEMPERATURE 15
 #define MM_IOHID_EVENT_FIELD_BASE(type) (type << 16)
 
-extern IOHIDEventRef IOHIDServiceClientCopyEvent(IOHIDServiceClientRef service, int64_t type, int32_t options, int64_t timestamp);
-extern CFTypeRef IOHIDServiceClientCopyProperty(IOHIDServiceClientRef service, CFStringRef key);
-extern IOHIDFloat IOHIDEventGetFloatValue(IOHIDEventRef event, int32_t field);
-extern IOHIDEventSystemClientRef IOHIDEventSystemClientCreate(CFAllocatorRef allocator);
-extern int IOHIDEventSystemClientSetMatching(IOHIDEventSystemClientRef client, CFDictionaryRef matching);
-extern CFArrayRef IOHIDEventSystemClientCopyServices(IOHIDEventSystemClientRef client);
+// These private HID entry points are optional across macOS releases. Weak
+// imports let the monitor degrade to an unavailable temperature reading when
+// a symbol is absent instead of failing during dyld startup.
+extern IOHIDEventRef IOHIDServiceClientCopyEvent(IOHIDServiceClientRef service, int64_t type, int32_t options, int64_t timestamp) __attribute__((weak_import));
+extern CFTypeRef IOHIDServiceClientCopyProperty(IOHIDServiceClientRef service, CFStringRef key) __attribute__((weak_import));
+extern IOHIDFloat IOHIDEventGetFloatValue(IOHIDEventRef event, int32_t field) __attribute__((weak_import));
+extern IOHIDEventSystemClientRef IOHIDEventSystemClientCreate(CFAllocatorRef allocator) __attribute__((weak_import));
+extern int IOHIDEventSystemClientSetMatching(IOHIDEventSystemClientRef client, CFDictionaryRef matching) __attribute__((weak_import));
+extern CFArrayRef IOHIDEventSystemClientCopyServices(IOHIDEventSystemClientRef client) __attribute__((weak_import));
 
 static void initialize_snapshot(MMTemperatureSnapshot *snapshot) {
     snapshot->soc_average_celsius = NAN;
@@ -43,11 +46,38 @@ int MMReadTemperatures(MMTemperatureSnapshot *snapshot) {
     }
     initialize_snapshot(snapshot);
 
+    if (
+        IOHIDEventSystemClientCreate == NULL ||
+        IOHIDEventSystemClientSetMatching == NULL ||
+        IOHIDEventSystemClientCopyServices == NULL ||
+        IOHIDServiceClientCopyProperty == NULL ||
+        IOHIDServiceClientCopyEvent == NULL ||
+        IOHIDEventGetFloatValue == NULL
+    ) {
+        return 0;
+    }
+
     int32_t usage_page = 0xff00;
     int32_t usage = 0x0005;
     CFNumberRef page_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &usage_page);
     CFNumberRef usage_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &usage);
+    if (page_number == NULL || usage_number == NULL) {
+        if (page_number != NULL) {
+            CFRelease(page_number);
+        }
+        if (usage_number != NULL) {
+            CFRelease(usage_number);
+        }
+        return 0;
+    }
+
     CFMutableDictionaryRef matching = CFDictionaryCreateMutable(kCFAllocatorDefault, 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    if (matching == NULL) {
+        CFRelease(page_number);
+        CFRelease(usage_number);
+        return 0;
+    }
+
     CFDictionarySetValue(matching, CFSTR("PrimaryUsagePage"), page_number);
     CFDictionarySetValue(matching, CFSTR("PrimaryUsage"), usage_number);
     CFRelease(page_number);
@@ -58,7 +88,11 @@ int MMReadTemperatures(MMTemperatureSnapshot *snapshot) {
         CFRelease(matching);
         return 0;
     }
-    IOHIDEventSystemClientSetMatching(client, matching);
+    if (IOHIDEventSystemClientSetMatching(client, matching) != 0) {
+        CFRelease(matching);
+        CFRelease(client);
+        return 0;
+    }
     CFRelease(matching);
 
     CFArrayRef services = IOHIDEventSystemClientCopyServices(client);

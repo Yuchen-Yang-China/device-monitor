@@ -12,21 +12,39 @@ final class ProcessSampler: @unchecked Sendable {
     private var previous: [Int32: ProcessState] = [:]
     private var previousDate: Date?
 
+    var hasBaseline: Bool { previousDate != nil }
+
+    func reset() {
+        previous.removeAll(keepingCapacity: true)
+        previousDate = nil
+    }
+
     func sample(at date: Date) -> (cpu: [ProcessUsage], memory: [ProcessUsage]) {
         let current = collectCurrentStates()
+
+        // A CPU percentage needs two observations. Keep the first one only as a
+        // baseline so the UI never presents a fabricated all-zero ranking.
+        guard let baselineDate = previousDate else {
+            previous = current
+            self.previousDate = date
+            return ([], [])
+        }
+
         defer {
             previous = current
             previousDate = date
         }
 
-        let elapsed = date.timeIntervalSince(previousDate ?? date)
+        let elapsed = date.timeIntervalSince(baselineDate)
+        guard elapsed > 0 else { return ([], []) }
         let denominator = max(elapsed, 0.001) * 1_000_000_000
+        let cpuLimit = Double(max(1, ProcessInfo.processInfo.activeProcessorCount) * 100)
         var usages: [ProcessUsage] = []
 
         for (pid, state) in current {
             let priorTime = previous[pid]?.totalCPUTime ?? state.totalCPUTime
             let delta = state.totalCPUTime >= priorTime ? state.totalCPUTime - priorTime : 0
-            let cpuPercent = min(800, max(0, Double(delta) / denominator * 100))
+            let cpuPercent = min(cpuLimit, max(0, Double(delta) / denominator * 100))
             usages.append(ProcessUsage(id: pid, name: state.name, cpuPercent: cpuPercent, memoryBytes: state.memoryBytes))
         }
 

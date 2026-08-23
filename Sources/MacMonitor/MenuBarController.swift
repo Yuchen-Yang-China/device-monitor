@@ -26,12 +26,19 @@ enum MenuBarImageRenderer {
             .foregroundColor: NSColor.labelColor
         ]
         let separator = displayMode == .compact ? "" : " "
-        let upload = displayMode == .compact
-            ? ByteFormatter.rateCompact(snapshot.network.uploadBytesPerSecond)
-            : snapshot.network.uploadShortText
-        let download = displayMode == .compact
-            ? ByteFormatter.rateCompact(snapshot.network.downloadBytesPerSecond)
-            : snapshot.network.downloadShortText
+        // A failed read must not look like a live rate in the status item.
+        // The tooltip retains the last known value with an explicit stale
+        // label for users who need that context.
+        let upload = snapshot.network.isStale
+            ? "--"
+            : (displayMode == .compact
+                ? ByteFormatter.rateCompact(snapshot.network.uploadBytesPerSecond)
+                : snapshot.network.uploadShortText)
+        let download = snapshot.network.isStale
+            ? "--"
+            : (displayMode == .compact
+                ? ByteFormatter.rateCompact(snapshot.network.downloadBytesPerSecond)
+                : snapshot.network.downloadShortText)
         let top = "\u{2191}\(separator)\(upload)"
         let bottom = "\u{2193}\(separator)\(download)"
         let textX = offset + (displayMode == .compact ? 20 : 22)
@@ -66,6 +73,11 @@ enum MenuBarImageRenderer {
 
 @MainActor
 final class MenuBarController: NSObject, NSPopoverDelegate {
+    private enum PopoverLayout {
+        static let overviewSize = NSSize(width: 360, height: 300)
+        static let detailSize = NSSize(width: 360, height: 400)
+    }
+
     private let store: MonitorStore
     private let settings: AppSettings
     private let monitor: SystemMonitor
@@ -89,11 +101,12 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         statusItem.button?.imageScaling = .scaleNone
         statusItem.button?.showsBorderOnlyWhileMouseInside = true
         statusItem.button?.setAccessibilityLabel("Mac Monitor")
+        statusItem.button?.setAccessibilityHelp("Open the Mac Monitor dashboard")
         updateStatusItemSize()
 
         popover.behavior = .transient
-        popover.animates = true
-        popover.contentSize = NSSize(width: 360, height: 300)
+        popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        popover.contentSize = PopoverLayout.overviewSize
         popover.delegate = self
         observeChanges()
     }
@@ -135,25 +148,54 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
 
     private func updateStatusImage(force: Bool = false) {
         let width = statusItem.length
-        let signature = [
+        let renderSignature = [
             settings.displayMode.rawValue,
             settings.showNetwork.description,
             store.snapshot.cpu.level.label,
             store.snapshot.memory.level.label,
             store.snapshot.thermal.level.label,
+            store.snapshot.network.isStale.description,
             store.snapshot.network.uploadShortText,
             store.snapshot.network.downloadShortText
         ].joined(separator: "|")
-        guard force || signature != lastRenderSignature else { return }
+        if force || renderSignature != lastRenderSignature {
+            lastRenderSignature = renderSignature
+            statusItem.button?.image = MenuBarImageRenderer.render(
+                snapshot: store.snapshot,
+                displayMode: settings.displayMode,
+                showNetwork: settings.showNetwork,
+                width: width
+            )
+        }
 
-        lastRenderSignature = signature
-        statusItem.button?.image = MenuBarImageRenderer.render(
-            snapshot: store.snapshot,
-            displayMode: settings.displayMode,
-            showNetwork: settings.showNetwork,
-            width: width
-        )
-        statusItem.button?.toolTip = "CPU \(store.snapshot.cpu.primaryText), Memory \(store.snapshot.memory.level.label), \(HardwareInfo.temperatureTitle) \(store.snapshot.thermal.primaryText), upload \(store.snapshot.network.uploadText), download \(store.snapshot.network.downloadText)"
+        // Keep text descriptions live even when the compact image itself did
+        // not change (for example, CPU moves within the same pressure level).
+        let summary = statusSummary
+        statusItem.button?.toolTip = summary
+        statusItem.button?.setAccessibilityValue(summary)
+    }
+
+    private var statusSummary: String {
+        let snapshot = store.snapshot
+        let network = snapshot.network
+        let upload: String
+        let download: String
+        if network.isStale {
+            upload = network.uploadText == "Unavailable" ? "unavailable" : "last known \(network.uploadText)"
+            download = network.downloadText == "Unavailable" ? "unavailable" : "last known \(network.downloadText)"
+        } else {
+            upload = network.uploadText
+            download = network.downloadText
+        }
+        let networkStatus: String
+        if network.isStale {
+            networkStatus = "network out of date"
+        } else if network.uploadBytesPerSecond == nil, network.downloadBytesPerSecond == nil {
+            networkStatus = "network unavailable"
+        } else {
+            networkStatus = "network current"
+        }
+        return "CPU \(snapshot.cpu.primaryText), Memory \(snapshot.memory.primaryText), \(HardwareInfo.temperatureTitle) \(snapshot.thermal.primaryText), \(networkStatus), upload \(upload), download \(download)"
     }
 
     @objc private func togglePopover() {
@@ -184,20 +226,27 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         )
         let controller = NSHostingController(rootView: dashboard)
         popover.contentViewController = controller
+        popover.contentSize = PopoverLayout.overviewSize
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         positionPopoverWindow(relativeTo: button)
         DispatchQueue.main.async { [weak self] in
             if let button = self?.statusItem.button {
                 self?.positionPopoverWindow(relativeTo: button)
             }
-            self?.popover.contentViewController?.view.window?.makeFirstResponder(nil)
         }
     }
 
     private func updatePopoverSize(for metric: MetricKind?) {
-        popover.contentSize = NSSize(width: 360, height: metric == nil ? 300 : 400)
-        if let button = statusItem.button, popover.isShown {
-            positionPopoverWindow(relativeTo: button)
+        let size = metric == nil ? PopoverLayout.overviewSize : PopoverLayout.detailSize
+        guard popover.contentSize != size else { return }
+
+        popover.contentSize = size
+        // AppKit updates the popover window on the next run loop turn. Re-read
+        // the final frame then, otherwise positioning uses the previous height.
+        guard popover.isShown else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let button = self.statusItem.button else { return }
+            self.positionPopoverWindow(relativeTo: button)
         }
     }
 
@@ -218,9 +267,17 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         var x = anchorOnScreen.midX - size.width / 2
         x = max(visibleFrame.minX + horizontalMargin, min(x, visibleFrame.maxX - size.width - horizontalMargin))
 
-        var y = anchorOnScreen.minY - size.height - verticalMargin
-        if y < visibleFrame.minY + horizontalMargin {
-            y = anchorOnScreen.maxY + verticalMargin
+        let minimumY = visibleFrame.minY + verticalMargin
+        let maximumY = visibleFrame.maxY - size.height - verticalMargin
+        let aboveY = anchorOnScreen.minY - size.height - verticalMargin
+        let belowY = anchorOnScreen.maxY + verticalMargin
+        var y = aboveY >= minimumY ? aboveY : belowY
+        if maximumY >= minimumY {
+            y = min(max(y, minimumY), maximumY)
+        } else {
+            // A very small display cannot fit the full dashboard. Keep the
+            // window visible instead of allowing it to drift off-screen.
+            y = minimumY
         }
         window.setFrameOrigin(NSPoint(x: x, y: y))
     }
@@ -237,7 +294,6 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
-        settingsWindowController?.window?.makeFirstResponder(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
 

@@ -10,6 +10,10 @@
     <string>MacMonitor</string>
     <key>CFBundleIdentifier</key>
     <string>com.yangyuchen.macmonitor</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>Mac Monitor</string>
     <key>CFBundlePackageType</key>

@@ -18,6 +18,7 @@ swift test
 print "Checking shell and plist syntax..."
 zsh -n Scripts/build-app.sh Scripts/verify.sh
 plutil -lint App/Info.plist
+[[ -f App/AppIcon.icns ]] || { print -u2 "Missing app icon: App/AppIcon.icns"; exit 1; }
 
 print "Checking build-script path guards..."
 expect_build_failure() {

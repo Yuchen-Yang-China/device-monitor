@@ -178,10 +178,13 @@ if [[ -e "$app_dir/Contents" && ! -d "$app_dir/Contents" ]]; then
     print -u2 "Existing Contents path is not a directory: $app_dir/Contents"
     exit 2
 fi
+icon_file="$project_dir/App/AppIcon.icns"
+[[ -f "$icon_file" ]] || { print -u2 "Missing app icon: $icon_file"; exit 1; }
 rm -rf "$app_dir/Contents"
-mkdir -p "$app_dir/Contents/MacOS"
+mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
 cp "$binary" "$app_dir/Contents/MacOS/MacMonitor"
 cp "$project_dir/App/Info.plist" "$app_dir/Contents/Info.plist"
+cp "$icon_file" "$app_dir/Contents/Resources/AppIcon.icns"
 
 if [[ -n "$signing_identity" ]]; then
     print "Signing with identity: $signing_identity"

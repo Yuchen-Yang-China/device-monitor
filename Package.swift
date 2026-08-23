@@ -22,7 +22,8 @@ let package = Package(
             path: "Sources/MacMonitor",
             linkerSettings: [
                 .linkedFramework("AppKit"),
-                .linkedFramework("SystemConfiguration")
+                .linkedFramework("SystemConfiguration"),
+                .linkedFramework("CoreWLAN")
             ]
         )
     ]

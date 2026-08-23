@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac-monitor}",
+            "name": "Debug MacMonitor",
+            "target": "MacMonitor",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug MacMonitor"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:mac-monitor}",
+            "name": "Release MacMonitor",
+            "target": "MacMonitor",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release MacMonitor"
+        }
+    ]
+}

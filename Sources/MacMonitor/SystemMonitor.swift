@@ -1,4 +1,5 @@
 import Darwin
+import CoreWLAN
 import Foundation
 import SensorBridge
 import SystemConfiguration
@@ -24,16 +25,29 @@ final class SystemMonitor: @unchecked Sendable {
     private let store: MonitorStore
     private let samplingQueue = DispatchQueue(label: "com.macmonitor.sampling", qos: .utility)
     private var timer: DispatchSourceTimer?
-    private var sampleCount = 0
+    private var samplingProfile: SamplingProfile
+    private var lastNetworkSampleAt: Date?
+    private var lastSystemSampleAt: Date?
+    private var lastThermalSampleAt: Date?
+    private var lastProcessSampleAt: Date?
+    private var lastWiFiSampleAt: Date?
     private var previousCPUTicks: CPUTicks?
     private var previousNetworkCounter: NetworkCounter?
     private var previousSnapshot = SystemSnapshot.initial
     private var memoryPressureUntil: Date?
     private var memoryPressureLevel: MetricLevel = .normal
     private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var detailDemand: MetricKind?
+    private var processRefreshRequested = false
+    private var wifiRefreshRequested = false
+    private let processSampler = ProcessSampler()
+    private var sessionUploadBytes: UInt64 = 0
+    private var sessionDownloadBytes: UInt64 = 0
+    private var coreTopology: (performance: Int, efficiency: Int, isHybrid: Bool)?
 
-    init(store: MonitorStore) {
+    init(store: MonitorStore, profile: SamplingProfile = .balanced) {
         self.store = store
+        self.samplingProfile = profile
     }
 
     func start() {
@@ -41,12 +55,7 @@ final class SystemMonitor: @unchecked Sendable {
             guard let self else { return }
             self.installMemoryPressureObserver()
             self.sample()
-
-            let timer = DispatchSource.makeTimerSource(queue: self.samplingQueue)
-            timer.schedule(deadline: .now() + 1, repeating: .seconds(1), leeway: .seconds(1))
-            timer.setEventHandler { [weak self] in self?.sample() }
-            self.timer = timer
-            timer.resume()
+            self.scheduleTimer()
         }
     }
 
@@ -57,6 +66,54 @@ final class SystemMonitor: @unchecked Sendable {
             self?.memoryPressureSource?.cancel()
             self?.memoryPressureSource = nil
         }
+    }
+
+    func setDetailDemand(_ demand: MetricKind?) {
+        samplingQueue.async { [weak self] in
+            guard let self else { return }
+            self.detailDemand = demand
+            if demand == nil {
+                self.processRefreshRequested = false
+                self.wifiRefreshRequested = false
+            }
+            if demand == .cpu || demand == .memory {
+                self.processRefreshRequested = true
+            }
+            if demand == .network {
+                self.wifiRefreshRequested = true
+            }
+        }
+    }
+
+    func setSamplingProfile(_ profile: SamplingProfile) {
+        samplingQueue.async { [weak self] in
+            guard let self else { return }
+            self.samplingProfile = profile
+            self.scheduleTimer()
+        }
+    }
+
+    func resetNetworkTotals() {
+        samplingQueue.async { [weak self] in
+            self?.sessionUploadBytes = 0
+            self?.sessionDownloadBytes = 0
+        }
+    }
+
+    private func scheduleTimer() {
+        timer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: samplingQueue)
+        let interval = max(1, samplingProfile.networkInterval)
+        let intervalMilliseconds = Int(interval * 1_000)
+        let leewayMilliseconds = Int(max(250, min(1_000, interval * 500)))
+        timer.schedule(
+            deadline: .now() + .milliseconds(intervalMilliseconds),
+            repeating: .milliseconds(intervalMilliseconds),
+            leeway: .milliseconds(leewayMilliseconds)
+        )
+        timer.setEventHandler { [weak self] in self?.sample() }
+        self.timer = timer
+        timer.resume()
     }
 
     private func installMemoryPressureObserver() {
@@ -72,21 +129,39 @@ final class SystemMonitor: @unchecked Sendable {
     }
 
     private func sample() {
-        sampleCount += 1
         let now = Date()
         var snapshot = previousSnapshot
         snapshot.capturedAt = now
 
-        if sampleCount == 1 || sampleCount.isMultiple(of: 5) {
+        let shouldSampleSystem = lastSystemSampleAt == nil || now.timeIntervalSince(lastSystemSampleAt!) >= samplingProfile.systemInterval
+        let shouldSampleThermal = lastThermalSampleAt == nil || now.timeIntervalSince(lastThermalSampleAt!) >= samplingProfile.thermalInterval
+        let shouldSampleNetwork = lastNetworkSampleAt == nil || now.timeIntervalSince(lastNetworkSampleAt!) >= samplingProfile.networkInterval
+
+        if shouldSampleSystem {
             snapshot.cpu = readCPU(now: now)
             snapshot.memory = readMemory(now: now)
+            lastSystemSampleAt = now
         }
 
-        if sampleCount == 1 || sampleCount.isMultiple(of: 15) {
+        if shouldSampleThermal {
             snapshot.thermal = readThermal(now: now)
+            lastThermalSampleAt = now
         }
 
-        snapshot.network = readNetwork(now: now)
+        if (detailDemand == .cpu || detailDemand == .memory) &&
+            (processRefreshRequested || lastProcessSampleAt == nil || now.timeIntervalSince(lastProcessSampleAt!) >= 10) {
+            let processUsage = processSampler.sample(at: now)
+            snapshot.topCPUProcesses = processUsage.cpu
+            snapshot.topMemoryProcesses = processUsage.memory
+            snapshot.processSampledAt = now
+            processRefreshRequested = false
+            lastProcessSampleAt = now
+        }
+
+        if shouldSampleNetwork {
+            snapshot.network = readNetwork(now: now)
+            lastNetworkSampleAt = now
+        }
         previousSnapshot = snapshot
 
         DispatchQueue.main.async { [weak self] in
@@ -96,21 +171,70 @@ final class SystemMonitor: @unchecked Sendable {
 
     private func readCPU(now: Date) -> CPUReading {
         guard let ticks = readCPUTicks() else {
-            return CPUReading(utilization: previousSnapshot.cpu.utilization, level: .stale, capturedAt: previousSnapshot.cpu.capturedAt)
+            return CPUReading(
+                utilization: previousSnapshot.cpu.utilization,
+                userPercent: previousSnapshot.cpu.userPercent,
+                systemPercent: previousSnapshot.cpu.systemPercent,
+                idlePercent: previousSnapshot.cpu.idlePercent,
+                loadAverage1: previousSnapshot.cpu.loadAverage1,
+                loadAverage5: previousSnapshot.cpu.loadAverage5,
+                loadAverage15: previousSnapshot.cpu.loadAverage15,
+                performanceCoreCount: previousSnapshot.cpu.performanceCoreCount,
+                efficiencyCoreCount: previousSnapshot.cpu.efficiencyCoreCount,
+                hasHybridCoreTopology: previousSnapshot.cpu.hasHybridCoreTopology,
+                level: .stale,
+                capturedAt: previousSnapshot.cpu.capturedAt
+            )
         }
         defer { previousCPUTicks = ticks }
 
+        let loads = readLoadAverages()
+        let topology = coreTopology ?? readCoreTopology()
+        coreTopology = topology
+
         guard let previous = previousCPUTicks else {
-            return CPUReading(utilization: nil, level: .sampling, capturedAt: nil)
+            return CPUReading(
+                utilization: nil,
+                userPercent: nil,
+                systemPercent: nil,
+                idlePercent: nil,
+                loadAverage1: loads.0,
+                loadAverage5: loads.1,
+                loadAverage15: loads.2,
+                performanceCoreCount: topology.performance,
+                efficiencyCoreCount: topology.efficiency,
+                hasHybridCoreTopology: topology.isHybrid,
+                level: .sampling,
+                capturedAt: nil
+            )
         }
 
         let totalDelta = ticks.total >= previous.total ? ticks.total - previous.total : 0
         let idleDelta = ticks.idle >= previous.idle ? ticks.idle - previous.idle : 0
         guard totalDelta > 0 else {
-            return CPUReading(utilization: previousSnapshot.cpu.utilization, level: .stale, capturedAt: previousSnapshot.cpu.capturedAt)
+            return CPUReading(
+                utilization: previousSnapshot.cpu.utilization,
+                userPercent: previousSnapshot.cpu.userPercent,
+                systemPercent: previousSnapshot.cpu.systemPercent,
+                idlePercent: previousSnapshot.cpu.idlePercent,
+                loadAverage1: loads.0,
+                loadAverage5: loads.1,
+                loadAverage15: loads.2,
+                performanceCoreCount: topology.performance,
+                efficiencyCoreCount: topology.efficiency,
+                hasHybridCoreTopology: topology.isHybrid,
+                level: .stale,
+                capturedAt: previousSnapshot.cpu.capturedAt
+            )
         }
 
-        let utilization = min(100, max(0, (1 - Double(idleDelta) / Double(totalDelta)) * 100))
+        let userDelta = ticks.user >= previous.user ? ticks.user - previous.user : 0
+        let systemDelta = ticks.system >= previous.system ? ticks.system - previous.system : 0
+        let niceDelta = ticks.nice >= previous.nice ? ticks.nice - previous.nice : 0
+        let userPercent = min(100, max(0, Double(userDelta + niceDelta) / Double(totalDelta) * 100))
+        let systemPercent = min(100, max(0, Double(systemDelta) / Double(totalDelta) * 100))
+        let idlePercent = min(100, max(0, Double(idleDelta) / Double(totalDelta) * 100))
+        let utilization = min(100, max(0, 100 - idlePercent))
         let level: MetricLevel
         if utilization >= 90 {
             level = .critical
@@ -119,7 +243,45 @@ final class SystemMonitor: @unchecked Sendable {
         } else {
             level = .normal
         }
-        return CPUReading(utilization: utilization, level: level, capturedAt: now)
+        return CPUReading(
+            utilization: utilization,
+            userPercent: userPercent,
+            systemPercent: systemPercent,
+            idlePercent: idlePercent,
+            loadAverage1: loads.0,
+            loadAverage5: loads.1,
+            loadAverage15: loads.2,
+            performanceCoreCount: topology.performance,
+            efficiencyCoreCount: topology.efficiency,
+            hasHybridCoreTopology: topology.isHybrid,
+            level: level,
+            capturedAt: now
+        )
+    }
+
+    private func readLoadAverages() -> (Double?, Double?, Double?) {
+        var loads = [Double](repeating: 0, count: 3)
+        let count = loads.withUnsafeMutableBufferPointer { buffer in
+            getloadavg(buffer.baseAddress, 3)
+        }
+        guard count == 3 else { return (nil, nil, nil) }
+        return (loads[0], loads[1], loads[2])
+    }
+
+    private func readCoreTopology() -> (performance: Int, efficiency: Int, isHybrid: Bool) {
+        let performance = sysctlInt(named: "hw.perflevel0.logicalcpu") ?? 0
+        let efficiency = sysctlInt(named: "hw.perflevel1.logicalcpu") ?? 0
+        if performance + efficiency > 0 {
+            return (performance, efficiency, true)
+        }
+        return (ProcessInfo.processInfo.activeProcessorCount, 0, false)
+    }
+
+    private func sysctlInt(named name: String) -> Int? {
+        var value: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        let result = sysctlbyname(name, &value, &size, nil, 0)
+        return result == 0 ? Int(value) : nil
     }
 
     private func readCPUTicks() -> CPUTicks? {
@@ -169,6 +331,11 @@ final class SystemMonitor: @unchecked Sendable {
             return MemoryReading(
                 usedBytes: previousSnapshot.memory.usedBytes,
                 totalBytes: ProcessInfo.processInfo.physicalMemory,
+                wiredBytes: previousSnapshot.memory.wiredBytes,
+                compressedBytes: previousSnapshot.memory.compressedBytes,
+                cachedBytes: previousSnapshot.memory.cachedBytes,
+                swapUsedBytes: previousSnapshot.memory.swapUsedBytes,
+                swapTotalBytes: previousSnapshot.memory.swapTotalBytes,
                 level: .stale,
                 capturedAt: previousSnapshot.memory.capturedAt
             )
@@ -177,6 +344,10 @@ final class SystemMonitor: @unchecked Sendable {
         let pageSize = UInt64(getpagesize())
         let usedPages = UInt64(statistics.active_count) + UInt64(statistics.wire_count) + UInt64(statistics.compressor_page_count)
         let usedBytes = usedPages * pageSize
+        let wiredBytes = UInt64(statistics.wire_count) * pageSize
+        let compressedBytes = UInt64(statistics.compressor_page_count) * pageSize
+        let cachedBytes = UInt64(statistics.external_page_count) * pageSize
+        let swap = readSwapUsage()
         let totalBytes = ProcessInfo.processInfo.physicalMemory
         let ratio = totalBytes > 0 ? Double(usedBytes) / Double(totalBytes) : 0
 
@@ -191,7 +362,25 @@ final class SystemMonitor: @unchecked Sendable {
             level = .normal
         }
 
-        return MemoryReading(usedBytes: usedBytes, totalBytes: totalBytes, level: level, capturedAt: now)
+        return MemoryReading(
+            usedBytes: usedBytes,
+            totalBytes: totalBytes,
+            wiredBytes: wiredBytes,
+            compressedBytes: compressedBytes,
+            cachedBytes: cachedBytes,
+            swapUsedBytes: swap.used,
+            swapTotalBytes: swap.total,
+            level: level,
+            capturedAt: now
+        )
+    }
+
+    private func readSwapUsage() -> (used: UInt64?, total: UInt64?) {
+        var usage = xsw_usage()
+        var size = MemoryLayout<xsw_usage>.size
+        let result = sysctlbyname("vm.swapusage", &usage, &size, nil, 0)
+        guard result == 0 else { return (nil, nil) }
+        return (usage.xsu_used, usage.xsu_total)
     }
 
     private func readThermal(now: Date) -> ThermalReading {
@@ -215,7 +404,6 @@ final class SystemMonitor: @unchecked Sendable {
         let ssdCelsius = sensorQuerySucceeded && sensors.ssd_sensor_count > 0 && sensors.ssd_average_celsius.isFinite
             ? sensors.ssd_average_celsius
             : nil
-
         return ThermalReading(
             state: state,
             socCelsius: socCelsius,
@@ -226,28 +414,71 @@ final class SystemMonitor: @unchecked Sendable {
     }
 
     private func readNetwork(now: Date) -> NetworkReading {
+        let wifi: WiFiReading?
+        if detailDemand == .network &&
+            (wifiRefreshRequested || lastWiFiSampleAt == nil || now.timeIntervalSince(lastWiFiSampleAt!) >= 30) {
+            let refreshedWiFi = readWiFi(now: now)
+            wifi = refreshedWiFi ?? previousSnapshot.network.wifi
+            if refreshedWiFi != nil {
+                lastWiFiSampleAt = now
+            }
+            wifiRefreshRequested = false
+        } else {
+            wifi = previousSnapshot.network.wifi
+        }
+
         guard let counter = readNetworkCounter(now: now) else {
             return NetworkReading(
                 uploadBytesPerSecond: previousSnapshot.network.uploadBytesPerSecond,
-                downloadBytesPerSecond: previousSnapshot.network.downloadBytesPerSecond
+                downloadBytesPerSecond: previousSnapshot.network.downloadBytesPerSecond,
+                sessionUploadBytes: sessionUploadBytes,
+                sessionDownloadBytes: sessionDownloadBytes,
+                wifi: wifi
             )
         }
         defer { previousNetworkCounter = counter }
 
         guard let previous = previousNetworkCounter, counter.interface != nil else {
-            return NetworkReading(uploadBytesPerSecond: nil, downloadBytesPerSecond: nil)
+            return NetworkReading(
+                uploadBytesPerSecond: nil,
+                downloadBytesPerSecond: nil,
+                sessionUploadBytes: sessionUploadBytes,
+                sessionDownloadBytes: sessionDownloadBytes,
+                wifi: wifi
+            )
         }
 
         let elapsed = now.timeIntervalSince(previous.capturedAt)
         guard elapsed > 0, previous.interface == counter.interface else {
-            return NetworkReading(uploadBytesPerSecond: nil, downloadBytesPerSecond: nil)
+            return NetworkReading(
+                uploadBytesPerSecond: nil,
+                downloadBytesPerSecond: nil,
+                sessionUploadBytes: sessionUploadBytes,
+                sessionDownloadBytes: sessionDownloadBytes,
+                wifi: wifi
+            )
         }
 
         let sentDelta = counter.sent >= previous.sent ? counter.sent - previous.sent : 0
         let receivedDelta = counter.received >= previous.received ? counter.received - previous.received : 0
+        sessionUploadBytes += sentDelta
+        sessionDownloadBytes += receivedDelta
         return NetworkReading(
             uploadBytesPerSecond: Double(sentDelta) / elapsed,
-            downloadBytesPerSecond: Double(receivedDelta) / elapsed
+            downloadBytesPerSecond: Double(receivedDelta) / elapsed,
+            sessionUploadBytes: sessionUploadBytes,
+            sessionDownloadBytes: sessionDownloadBytes,
+            wifi: wifi
+        )
+    }
+
+    private func readWiFi(now: Date) -> WiFiReading? {
+        guard let interface = CWWiFiClient.shared().interface() else { return nil }
+        return WiFiReading(
+            ssid: interface.ssid(),
+            rssi: interface.rssiValue(),
+            channel: interface.wlanChannel()?.channelNumber,
+            capturedAt: now
         )
     }
 

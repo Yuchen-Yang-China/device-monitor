@@ -5,20 +5,29 @@ struct DashboardView: View {
     @ObservedObject var store: MonitorStore
     let onOpenSettings: () -> Void
     let onQuit: () -> Void
+    let onDetailDemand: (MetricKind?) -> Void
     @State private var selectedMetric: MetricKind?
 
     var body: some View {
         Group {
             if let selectedMetric {
-                MetricDetailView(metric: selectedMetric, store: store) {
-                    self.selectedMetric = nil
+                ScrollView(.vertical, showsIndicators: false) {
+                    MetricDetailView(metric: selectedMetric, store: store) {
+                        select(nil)
+                    }
+                    .padding(.bottom, 4)
                 }
+                .frame(height: 360)
+                .transition(.opacity.combined(with: .move(edge: .trailing)))
             } else {
                 overview
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
             }
         }
-        .frame(width: 360)
-        .padding(16)
+        .frame(width: 336)
+        .padding(12)
+        .background(VisualEffectBackground(material: .popover))
+        .animation(.easeOut(duration: 0.16), value: selectedMetric)
     }
 
     private var overview: some View {
@@ -38,27 +47,27 @@ struct DashboardView: View {
                     value: store.snapshot.cpu.primaryText,
                     state: store.snapshot.cpu.level,
                     subtitle: "Processor utilization"
-                ) { selectedMetric = .cpu }
+                ) { select(.cpu) }
                 Divider()
                 OverviewMetricRow(
                     kind: .memory,
                     value: store.snapshot.memory.primaryText,
                     state: store.snapshot.memory.level,
                     subtitle: "Memory pressure"
-                ) { selectedMetric = .memory }
+                ) { select(.memory) }
                 Divider()
                 OverviewMetricRow(
                     kind: .thermal,
                     value: store.snapshot.thermal.primaryText,
                     state: store.snapshot.thermal.level,
-                    subtitle: "Average PMU die sensors"
-                ) { selectedMetric = .thermal }
+                    subtitle: "Average temperature sensors"
+                ) { select(.thermal) }
             }
 
             Divider()
 
-            Button { selectedMetric = .network } label: {
-                VStack(alignment: .leading, spacing: 6) {
+            Button { select(.network) } label: {
+                VStack(alignment: .leading, spacing: 7) {
                     HStack {
                         Label("Network", systemImage: MetricKind.network.symbol)
                             .font(.headline)
@@ -73,22 +82,31 @@ struct DashboardView: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .focusable(false)
-            .focusEffectDisabled()
+            .buttonStyle(DashboardRowButtonStyle())
 
             HStack {
                 Button(action: onOpenSettings) {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.borderless)
+                .focusable(false)
+                .focusEffectDisabled()
                 .help("Settings")
                 Spacer()
                 Button("Quit", action: onQuit)
                     .buttonStyle(.borderless)
+                    .focusable(false)
+                    .focusEffectDisabled()
             }
             .font(.subheadline)
         }
+    }
+
+    private func select(_ metric: MetricKind?) {
+        withAnimation(.easeOut(duration: 0.16)) {
+            selectedMetric = metric
+        }
+        onDetailDemand(metric)
     }
 }
 
@@ -115,15 +133,45 @@ private struct OverviewMetricRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(value)
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                     StatusLabel(level: state)
                 }
             }
             .padding(.vertical, 9)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .focusEffectDisabled()
+        .buttonStyle(DashboardRowButtonStyle())
+    }
+}
+
+struct DashboardRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        DashboardRowButton(configuration: configuration)
+    }
+}
+
+private struct DashboardRowButton: View {
+    let configuration: ButtonStyle.Configuration
+    @State private var isHovering = false
+
+    var body: some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(
+                        configuration.isPressed
+                            ? Color.primary.opacity(0.12)
+                            : isHovering ? Color.primary.opacity(0.06) : .clear
+                    )
+            )
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.12)) {
+                    isHovering = hovering
+                }
+            }
+            .focusable(false)
+            .focusEffectDisabled()
     }
 }
 
@@ -154,8 +202,9 @@ struct MetricDetailView: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.borderless)
-                .help("Back")
                 .focusable(false)
+                .focusEffectDisabled()
+                .help("Back")
                 Text(metric.title)
                     .font(.headline)
                 Spacer()
@@ -164,33 +213,31 @@ struct MetricDetailView: View {
                 }
             }
 
-            Text(primaryText)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .monospacedDigit()
+            detailContent
+        }
+    }
 
-            if metric != .network {
-                TrendSection(
-                    title: "Last 5 minutes",
-                    points: primaryTrend,
-                    color: level.swiftUIColor,
-                    range: trendRange
-                )
-            }
-
-            if metric == .network {
-                Divider()
-                TrendSection(title: "Upload", points: store.uploadTrend, color: Color(nsColor: .systemBlue))
-                TrendSection(title: "Download", points: store.downloadTrend, color: Color(nsColor: .systemTeal))
-            } else {
-                Divider()
-                if metric == .thermal {
-                    TemperatureDetails(reading: store.snapshot.thermal)
-                } else {
-                    Text(detailText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
+    @ViewBuilder
+    private var detailContent: some View {
+        switch metric {
+        case .cpu:
+            CPUDetailContent(
+                reading: store.snapshot.cpu,
+                trend: store.cpuTrend,
+                processes: store.snapshot.topCPUProcesses,
+                processSampledAt: store.snapshot.processSampledAt
+            )
+        case .memory:
+            MemoryDetailContent(
+                reading: store.snapshot.memory,
+                trend: store.memoryTrend,
+                processes: store.snapshot.topMemoryProcesses,
+                processSampledAt: store.snapshot.processSampledAt
+            )
+        case .thermal:
+            ThermalDetailContent(reading: store.snapshot.thermal, trend: store.thermalTrend)
+        case .network:
+            NetworkDetailContent(reading: store.snapshot.network, uploadTrend: store.uploadTrend, downloadTrend: store.downloadTrend)
         }
     }
 
@@ -202,54 +249,320 @@ struct MetricDetailView: View {
         case .network: return .normal
         }
     }
+}
 
-    private var primaryText: String {
-        switch metric {
-        case .cpu: return store.snapshot.cpu.primaryText
-        case .memory: return store.snapshot.memory.primaryText
-        case .thermal: return store.snapshot.thermal.primaryText
-        case .network: return "\u{2191} \(store.snapshot.network.uploadText)   \u{2193} \(store.snapshot.network.downloadText)"
-        }
-    }
+struct CPUDetailContent: View {
+    let reading: CPUReading
+    let trend: [TrendPoint]
+    let processes: [ProcessUsage]
+    let processSampledAt: Date?
 
-    private var primaryTrend: [TrendPoint] {
-        switch metric {
-        case .cpu: return store.cpuTrend
-        case .memory: return store.memoryTrend
-        case .thermal: return store.thermalTrend
-        case .network: return []
-        }
-    }
-
-    private var trendRange: ClosedRange<Double>? {
-        switch metric {
-        case .cpu, .memory: return 0...100
-        case .thermal: return 20...100
-        case .network: return nil
-        }
-    }
-
-    private var detailText: String {
-        switch metric {
-        case .cpu: return "Utilization is sampled every 5 seconds."
-        case .memory: return "Uses memory pressure events with a physical-memory estimate."
-        case .thermal: return ""
-        case .network: return ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DetailHero(value: reading.primaryText, caption: "Total utilization", color: reading.level.swiftUIColor)
+            TrendSection(
+                title: "Last 5 minutes",
+                points: trend,
+                color: reading.level.swiftUIColor,
+                range: 0...100,
+                stats: [
+                    StatItem("Average", value: DisplayFormatter.percent(TrendMath.average(trend))),
+                    StatItem("Peak", value: DisplayFormatter.percent(TrendMath.peak(trend)))
+                ]
+            )
+            Divider()
+            SectionBand(title: "CPU breakdown") {
+                BreakdownRow(label: "User", value: DisplayFormatter.percent(reading.userPercent), color: .systemBlue)
+                BreakdownRow(label: "System", value: DisplayFormatter.percent(reading.systemPercent), color: .systemOrange)
+                BreakdownRow(label: "Idle", value: DisplayFormatter.percent(reading.idlePercent), color: .tertiaryLabelColor)
+            }
+            SectionBand(title: "Load average") {
+                StatGrid(items: [
+                    StatItem("5 min", value: DisplayFormatter.decimal(reading.loadAverage5)),
+                    StatItem("15 min", value: DisplayFormatter.decimal(reading.loadAverage15))
+                ])
+            }
+            SectionBand(title: "Hardware") {
+                if reading.hasHybridCoreTopology {
+                    StatGrid(items: [
+                        StatItem("Performance cores", value: "\(reading.performanceCoreCount)"),
+                        StatItem("Efficiency cores", value: "\(reading.efficiencyCoreCount)")
+                    ])
+                } else {
+                    StatGrid(items: [
+                        StatItem("Logical cores", value: "\(reading.performanceCoreCount)")
+                    ])
+                }
+            }
+            ProcessSection(
+                title: "Top CPU processes",
+                processes: processes,
+                sampledAt: processSampledAt,
+                mode: .cpu
+            )
         }
     }
 }
 
-struct TemperatureDetails: View {
-    let reading: ThermalReading
+struct MemoryDetailContent: View {
+    let reading: MemoryReading
+    let trend: [TrendPoint]
+    let processes: [ProcessUsage]
+    let processSampledAt: Date?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            LabeledContent("Thermal Pressure", value: reading.state.rawValue)
-            LabeledContent(HardwareInfo.hottestSensorTitle, value: reading.hottestSoCText)
-            LabeledContent("SSD Temperature", value: reading.ssdText)
+        VStack(alignment: .leading, spacing: 12) {
+            DetailHero(value: reading.primaryText, caption: "Memory pressure: \(reading.level.label)", color: reading.level.swiftUIColor)
+            TrendSection(
+                title: "Memory used · last 5 minutes",
+                points: trend,
+                color: reading.level.swiftUIColor,
+                range: 0...100,
+                stats: [
+                    StatItem("Average", value: DisplayFormatter.percent(TrendMath.average(trend))),
+                    StatItem("Peak", value: DisplayFormatter.percent(TrendMath.peak(trend)))
+                ]
+            )
+            Divider()
+            SectionBand(title: "Memory breakdown") {
+                StatGrid(items: [
+                    StatItem("Wired", value: ByteFormatter.memory(reading.wiredBytes)),
+                    StatItem("Compressed", value: ByteFormatter.memory(reading.compressedBytes)),
+                    StatItem("Cached", value: ByteFormatter.memory(reading.cachedBytes)),
+                    StatItem("Swap", value: reading.swapText)
+                ])
+            }
+            ProcessSection(
+                title: "Top memory processes",
+                processes: processes,
+                sampledAt: processSampledAt,
+                mode: .memory
+            )
+        }
+    }
+}
+
+struct ThermalDetailContent: View {
+    let reading: ThermalReading
+    let trend: [TrendPoint]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DetailHero(value: reading.primaryText, caption: "Average \(HardwareInfo.temperatureTitle)", color: reading.level.swiftUIColor)
+            TrendSection(
+                title: "\(HardwareInfo.temperatureTitle) · last 5 minutes",
+                points: trend,
+                color: reading.level.swiftUIColor,
+                range: 20...100,
+                stats: [
+                    StatItem("Minimum", value: TemperatureFormatter.celsius(TrendMath.minimum(trend))),
+                    StatItem("Average", value: TemperatureFormatter.celsius(TrendMath.average(trend))),
+                    StatItem("Maximum", value: TemperatureFormatter.celsius(TrendMath.peak(trend)))
+                ]
+            )
+            Divider()
+            SectionBand(title: "System state") {
+                StatGrid(items: [
+                    StatItem("Thermal pressure", value: reading.state.rawValue),
+                    StatItem(HardwareInfo.hottestSensorTitle, value: reading.hottestSoCText),
+                    StatItem("SSD temperature", value: reading.ssdText)
+                ])
+            }
+        }
+    }
+}
+
+struct NetworkDetailContent: View {
+    let reading: NetworkReading
+    let uploadTrend: [TrendPoint]
+    let downloadTrend: [TrendPoint]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 18) {
+                DirectionHero(symbol: "arrow.up", value: reading.uploadText, color: .systemBlue)
+                DirectionHero(symbol: "arrow.down", value: reading.downloadText, color: .systemTeal)
+            }
+            TrendSection(
+                title: "Upload · last 5 minutes",
+                points: uploadTrend,
+                color: Color(nsColor: .systemBlue),
+                stats: networkStats(points: uploadTrend, sessionBytes: reading.sessionUploadBytes)
+            )
+            TrendSection(
+                title: "Download · last 5 minutes",
+                points: downloadTrend,
+                color: Color(nsColor: .systemTeal),
+                stats: networkStats(points: downloadTrend, sessionBytes: reading.sessionDownloadBytes)
+            )
+            Divider()
+            SectionBand(title: "Wi-Fi") {
+                if let wifi = reading.wifi, wifi.isAvailable {
+                    StatGrid(items: [
+                        StatItem("Signal", value: wifi.rssi.map { "\($0) dBm" } ?? "Unavailable"),
+                        StatItem("Channel", value: wifi.channel.map(String.init) ?? "Unavailable")
+                    ])
+                } else {
+                    UnavailableText(text: "Wi-Fi details are unavailable or the current connection is not Wi-Fi.")
+                }
+            }
+        }
+    }
+
+    private func networkStats(points: [TrendPoint], sessionBytes: UInt64) -> [StatItem] {
+        [
+            StatItem("Average", value: ByteFormatter.rate(TrendMath.average(points))),
+            StatItem("Peak", value: ByteFormatter.rate(TrendMath.peak(points))),
+            StatItem("5 min total", value: ByteFormatter.transfer(TrendMath.cumulativeBytes(points))),
+            StatItem("Session total", value: ByteFormatter.transfer(sessionBytes))
+        ]
+    }
+}
+
+struct DetailHero: View {
+    let value: String
+    let caption: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value)
+                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+            Text(caption)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct DirectionHero: View {
+    let symbol: String
+    let value: String
+    let color: NSColor
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Image(systemName: symbol)
+                .foregroundStyle(Color(nsColor: color))
+            Text(value)
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct SectionBand<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text(title)
+                .font(.body.weight(.semibold))
+            content()
+        }
+    }
+}
+
+struct BreakdownRow: View {
+    let label: String
+    let value: String
+    let color: NSColor
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(Color(nsColor: color))
+                .frame(width: 6, height: 6)
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .monospacedDigit()
         }
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+    }
+}
+
+struct StatItem: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: String
+
+    init(_ label: String, value: String) {
+        self.label = label
+        self.value = value
+    }
+}
+
+struct StatGrid: View {
+    let items: [StatItem]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
+            ForEach(items) { item in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.label)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text(item.value)
+                        .font(.body)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
+struct ProcessSection: View {
+    enum Mode { case cpu, memory }
+
+    let title: String
+    let processes: [ProcessUsage]
+    let sampledAt: Date?
+    let mode: Mode
+
+    var body: some View {
+        SectionBand(title: title) {
+            if processes.isEmpty, sampledAt == nil {
+                UnavailableText(text: "Collecting process data")
+            } else if processes.isEmpty {
+                UnavailableText(text: "Process data unavailable")
+            } else {
+                VStack(spacing: 7) {
+                    ForEach(processes) { process in
+                        HStack(spacing: 8) {
+                            Text(process.name)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Text(mode == .cpu ? process.cpuText : process.memoryText)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.subheadline)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct UnavailableText: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
     }
 }
 
@@ -258,13 +571,17 @@ struct TrendSection: View {
     let points: [TrendPoint]
     let color: Color
     var range: ClosedRange<Double>? = nil
+    var stats: [StatItem] = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             Text(title)
-                .font(.subheadline)
+                .font(.body.weight(.semibold))
             Sparkline(points: points, color: color, range: range)
-                .frame(height: 72)
+                .frame(height: 60)
+            if !stats.isEmpty {
+                StatGrid(items: stats)
+            }
             if points.count < 2 {
                 Text("Collecting data")
                     .font(.caption)
@@ -290,7 +607,7 @@ struct Sparkline: View {
                 guard !points.isEmpty else { return }
                 for (index, point) in points.enumerated() {
                     let x = proxy.size.width * CGFloat(index) / CGFloat(max(points.count - 1, 1))
-                    let normalized = (point.value - minimum) / span
+                    let normalized = min(1, max(0, (point.value - minimum) / span))
                     let y = proxy.size.height * (1 - normalized)
                     if index == 0 {
                         path.move(to: CGPoint(x: x, y: y))
@@ -306,15 +623,36 @@ struct Sparkline: View {
     }
 }
 
+struct VisualEffectBackground: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+    }
+}
+
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init(settings: AppSettings, onBack: @escaping () -> Void) {
-        let controller = NSHostingController(rootView: SettingsView(settings: settings, onBack: onBack))
+    init(settings: AppSettings, onResetNetworkTotals: @escaping () -> Void, onBack: @escaping () -> Void) {
+        let controller = NSHostingController(rootView: SettingsView(
+            settings: settings,
+            onResetNetworkTotals: onResetNetworkTotals,
+            onBack: onBack
+        ))
         let window = NSWindow(contentViewController: controller)
         window.title = "Mac Monitor Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 420, height: 310))
+        window.setContentSize(NSSize(width: 420, height: 380))
         window.isReleasedWhenClosed = false
+        window.isMovableByWindowBackground = true
         super.init(window: window)
     }
 
@@ -325,6 +663,7 @@ final class SettingsWindowController: NSWindowController {
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
+    let onResetNetworkTotals: () -> Void
     let onBack: () -> Void
 
     var body: some View {
@@ -334,9 +673,9 @@ struct SettingsView: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.borderless)
-                .help("Back")
                 .focusable(false)
                 .focusEffectDisabled()
+                .help("Back")
                 Text("Settings")
                     .font(.headline)
                 Spacer()
@@ -350,22 +689,38 @@ struct SettingsView: View {
                         Text(mode.title).tag(mode)
                     }
                 }
+                Text(settings.displayMode.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Show network speed", isOn: $settings.showNetwork)
+                Picker("Sampling profile", selection: $settings.samplingProfile) {
+                    ForEach(SamplingProfile.allCases) { profile in
+                        Text(profile.title).tag(profile)
+                    }
+                }
+                Text(settings.samplingProfile.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Section("Temperature data") {
-                    LabeledContent("SoC source", value: "Apple Silicon PMU die sensors")
+                    LabeledContent("Temperature source", value: HardwareInfo.temperatureSource)
                     LabeledContent("Thermal pressure", value: "macOS system state")
                     Text("Unavailable values are not estimated.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Section("Sampling") {
-                    LabeledContent("Network", value: "1 second")
-                    LabeledContent("CPU and memory", value: "5 seconds")
-                    LabeledContent("Temperature", value: "15 seconds")
+                    LabeledContent("Current profile", value: settings.samplingProfile.title)
+                    LabeledContent("Process data", value: "Only while CPU/Memory details are open")
+                    LabeledContent("Wi-Fi data", value: "Only while Network details are open")
+                }
+                Section("Session data") {
+                    Button("Reset network session totals", action: onResetNetworkTotals)
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
         }
-        .frame(width: 420, height: 310)
+        .background(VisualEffectBackground(material: .windowBackground))
+        .frame(width: 420, height: 380)
     }
 }

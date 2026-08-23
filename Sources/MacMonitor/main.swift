@@ -12,11 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let store = MonitorStore()
         let settings = AppSettings()
-        let monitor = SystemMonitor(store: store)
+        let monitor = SystemMonitor(store: store, profile: settings.samplingProfile)
         self.store = store
         self.settings = settings
         self.monitor = monitor
-        menuBarController = MenuBarController(store: store, settings: settings)
+        menuBarController = MenuBarController(store: store, settings: settings, monitor: monitor)
         monitor.start()
     }
 

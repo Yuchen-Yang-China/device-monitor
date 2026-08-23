@@ -20,7 +20,7 @@ struct DashboardView: View {
     var body: some View {
         Group {
             if let selectedMetric {
-                ScrollView(.vertical, showsIndicators: true) {
+                ScrollView(.vertical, showsIndicators: false) {
                     MetricDetailView(metric: selectedMetric, store: store) {
                         select(nil)
                     }

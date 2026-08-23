@@ -195,7 +195,23 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         } else {
             networkStatus = "network current"
         }
-        return "CPU \(snapshot.cpu.primaryText), Memory \(snapshot.memory.primaryText), \(HardwareInfo.temperatureTitle) \(snapshot.thermal.primaryText), \(networkStatus), upload \(upload), download \(download)"
+        let cpu = freshnessValue(snapshot.cpu.primaryText, level: snapshot.cpu.level)
+        let memory = freshnessValue(snapshot.memory.primaryText, level: snapshot.memory.level)
+        let thermal = freshnessValue(snapshot.thermal.primaryText, level: snapshot.thermal.level)
+        return "CPU \(cpu), Memory \(memory), \(HardwareInfo.temperatureTitle) \(thermal), \(networkStatus), upload \(upload), download \(download)"
+    }
+
+    private func freshnessValue(_ value: String, level: MetricLevel) -> String {
+        switch level {
+        case .stale:
+            return value == "--" || value == "Unavailable" ? "unavailable" : "last known \(value)"
+        case .unavailable:
+            return "unavailable"
+        case .sampling:
+            return "collecting"
+        case .normal, .elevated, .critical:
+            return value == "Unavailable" || value == "--" ? "unavailable" : value
+        }
     }
 
     @objc private func togglePopover() {

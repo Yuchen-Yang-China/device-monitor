@@ -116,17 +116,34 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.contentViewController = nil
     }
 
+    func popoverWillShow(_ notification: Notification) {
+        // Establish a neutral initial responder before AppKit orders the
+        // popover. SwiftUI otherwise promotes the first Button while the
+        // opening animation is still drawing, which briefly shows a focus
+        // ring on the CPU row. This does not disable focusability; a later
+        // Tab/key interaction can still enter the normal key-view loop.
+        prepareInitialPopoverFocus()
+    }
+
     func popoverDidShow(_ notification: Notification) {
         // AppKit promotes the first SwiftUI Button to first responder when a
         // popover becomes key. That leaves the first metric row with a focus
         // ring before the user has interacted with the dashboard. Clear only
         // this initial responder; the buttons remain focusable for keyboard
         // navigation and VoiceOver.
-        clearInitialPopoverFocus()
+        prepareInitialPopoverFocus()
     }
 
-    private func clearInitialPopoverFocus() {
-        guard popover.isShown, let window = popover.contentViewController?.view.window else { return }
+    private func prepareInitialPopoverFocus() {
+        // During `popoverWillShow` the popover can still report `isShown ==
+        // false` even though AppKit has already attached the content view to
+        // its window. The window is the reliable signal that the initial
+        // responder can be configured before the first frame is ordered.
+        guard let window = popover.contentViewController?.view.window else { return }
+        // `initialFirstResponder` is consulted while AppKit orders the
+        // popover. Clearing it here prevents the first Button from being
+        // selected in the first rendered frame.
+        window.initialFirstResponder = nil
         window.makeFirstResponder(nil)
 
         // SwiftUI may install its default focus one run-loop turn after the
@@ -138,6 +155,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 let window = self.popover.contentViewController?.view.window,
                 window.isVisible
             else { return }
+            window.initialFirstResponder = nil
             window.makeFirstResponder(nil)
         }
     }
@@ -270,6 +288,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.contentViewController = controller
         popover.contentSize = PopoverLayout.overviewSize
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        // The delegate callback normally runs before the popover is visible,
+        // but this immediate pass also covers AppKit versions that attach the
+        // hosting view a little later in the show transaction.
+        prepareInitialPopoverFocus()
         positionPopoverWindow(relativeTo: button)
         DispatchQueue.main.async { [weak self] in
             if let button = self?.statusItem.button {

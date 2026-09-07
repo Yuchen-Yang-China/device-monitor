@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "swift: Build Debug MacMonitor",
+            "label": "swift: Build Debug DeviceMonitor",
             "type": "shell",
             "command": "swift",
             "args": ["build", "-c", "debug"],
@@ -11,7 +11,7 @@
             "group": {"kind": "build", "isDefault": true}
         },
         {
-            "label": "swift: Build Release MacMonitor",
+            "label": "swift: Build Release DeviceMonitor",
             "type": "shell",
             "command": "swift",
             "args": ["build", "-c", "release"],

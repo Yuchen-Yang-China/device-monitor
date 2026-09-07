@@ -1,4 +1,4 @@
-# Windows Monitor
+# Device Monitor for Windows
 
 此目录预留给 Device Monitor 的 Windows 托盘应用。
 

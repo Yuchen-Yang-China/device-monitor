@@ -1,4 +1,4 @@
-# Mac Monitor
+# Device Monitor for macOS
 
 Product behavior, Windows parity, and the cross-device protocol are documented in:
 
@@ -7,7 +7,7 @@ Product behavior, Windows parity, and the cross-device protocol are documented i
 - [Peer Status v1 JSON Schema](../../docs/status-v1.schema.json)
 - [Windows Codex handoff prompt (Chinese)](../../docs/WINDOWS_CODEX_HANDOFF.zh-CN.md)
 
-Mac Monitor is a native macOS menu bar monitor for the metrics that are useful
+Device Monitor is a native macOS menu bar monitor for the metrics that are useful
 at a glance: CPU utilization and load, memory pressure and swap, thermal state,
 and traffic on the primary physical network interface. Details are collected
 on demand so the menu bar path stays quiet when the popover is closed.
@@ -41,11 +41,11 @@ The build script asks SwiftPM for its actual binary directory, so it works with
 native and multi-architecture build layouts:
 
 ```sh
-./Scripts/build-app.sh                         # native release, MacMonitor.app
+./Scripts/build-app.sh                         # native release, DeviceMonitor.app
 ./Scripts/build-app.sh --arch arm64            # Apple Silicon
 ./Scripts/build-app.sh --arch x86_64           # Intel
 ./Scripts/build-app.sh --arch universal        # arm64 + x86_64
-./Scripts/build-app.sh --configuration debug --output /tmp/MacMonitor.app
+./Scripts/build-app.sh --configuration debug --output /tmp/DeviceMonitor.app
 ```
 
 Every bundle is signed and checked with `codesign --verify --deep --strict`.
@@ -55,7 +55,7 @@ build, provide a Developer ID identity either as an option or an environment
 variable:
 
 ```sh
-MACMONITOR_SIGNING_IDENTITY="Developer ID Application: Example (TEAMID)" \
+DEVICEMONITOR_SIGNING_IDENTITY="Developer ID Application: Example (TEAMID)" \
   ./Scripts/build-app.sh --arch universal
 ```
 
@@ -97,7 +97,7 @@ vector are in [Peer Status Protocol v1](../../docs/PEER_SYNC_PROTOCOL_V1.zh-CN.m
 Network counters use local interface statistics. Network details show signal
 strength and channel when CoreWLAN exposes them, without reading the SSID or
 requesting Location Services. Peer monitoring is disabled by default. When the
-user enables and configures it, Mac Monitor exchanges only the read-only metric
+user enables and configures it, Device Monitor exchanges only the read-only metric
 fields defined by Peer Status Protocol v1; process names, SSIDs, usernames,
 addresses, and files are never included.
 
@@ -114,7 +114,7 @@ plutil -lint App/Info.plist
 ```
 
 `Scripts/verify.sh` is the local static gate and does not require a signing
-identity. Set `MACMONITOR_VERIFY_APP=1` when an existing `MacMonitor.app`
+identity. Set `DEVICEMONITOR_VERIFY_APP=1` when an existing `DeviceMonitor.app`
 bundle should also be checked. `swift test` exercises pure formatting, sampling-profile, thermal-state, and
 trend calculations without requiring a GUI session or physical sensor. Build
 and signing checks should be run on the target macOS architecture; notarization

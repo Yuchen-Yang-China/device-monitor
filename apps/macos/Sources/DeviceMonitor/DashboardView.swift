@@ -168,12 +168,12 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel(peerConfiguration.language.text("Settings", "设置"))
-                .accessibilityHint(peerConfiguration.language.text("Open Mac Monitor settings", "打开 Mac Monitor 设置"))
+                .accessibilityHint(peerConfiguration.language.text("Open Device Monitor settings", "打开 Device Monitor 设置"))
                 .help(peerConfiguration.language.text("Settings", "设置"))
                 Spacer()
                 Button(peerConfiguration.language.text("Quit", "退出"), action: onQuit)
                     .buttonStyle(.borderless)
-                    .accessibilityHint(peerConfiguration.language.text("Quit Mac Monitor", "退出 Mac Monitor"))
+                    .accessibilityHint(peerConfiguration.language.text("Quit Device Monitor", "退出 Device Monitor"))
             }
             .font(.subheadline)
         }
@@ -1377,7 +1377,7 @@ final class SettingsWindowController: NSWindowController {
             onBack: onBack
         ))
         let window = NSWindow(contentViewController: controller)
-        window.title = "Mac Monitor Settings"
+        window.title = "Device Monitor Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.setContentSize(NSSize(width: 520, height: 650))
         window.isReleasedWhenClosed = false

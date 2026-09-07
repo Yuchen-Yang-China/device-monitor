@@ -1,7 +1,7 @@
 import XCTest
-@testable import MacMonitor
+@testable import DeviceMonitor
 
-final class MacMonitorTests: XCTestCase {
+final class DeviceMonitorTests: XCTestCase {
     func testSamplingProfilesExposeTheirCadenceContract() {
         XCTAssertEqual(SamplingProfile.balanced.networkInterval, 1)
         XCTAssertEqual(SamplingProfile.balanced.systemInterval, 5)

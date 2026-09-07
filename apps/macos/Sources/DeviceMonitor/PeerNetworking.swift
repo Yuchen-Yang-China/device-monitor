@@ -146,7 +146,7 @@ private enum PeerHTTPCodec {
 }
 
 final class PeerHTTPServer: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "com.macmonitor.peer.server", qos: .utility)
+    private let queue = DispatchQueue(label: "com.yangyuchen.devicemonitor.peer.server", qos: .utility)
     private let port: UInt16
     private let secret: Data
     private let payloadBox: PeerPayloadBox
@@ -459,7 +459,7 @@ private final class PeerClientRequest: @unchecked Sendable {
     private let endpoint: PeerEndpoint
     private let request: Data
     private let timeout: TimeInterval
-    private let queue = DispatchQueue(label: "com.macmonitor.peer.client", qos: .utility)
+    private let queue = DispatchQueue(label: "com.yangyuchen.devicemonitor.peer.client", qos: .utility)
     private var connection: NWConnection?
     private var continuation: CheckedContinuation<Data, Error>?
     private var buffer = Data()

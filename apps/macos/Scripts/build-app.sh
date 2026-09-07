@@ -6,8 +6,8 @@ project_dir="$(cd "$script_dir/.." && pwd)"
 
 configuration=release
 architecture=native
-app_dir="$project_dir/MacMonitor.app"
-signing_identity="${MACMONITOR_SIGNING_IDENTITY:-}"
+app_dir="$project_dir/DeviceMonitor.app"
+signing_identity="${DEVICEMONITOR_SIGNING_IDENTITY:-}"
 
 usage() {
     cat <<'EOF'
@@ -17,14 +17,14 @@ Options:
   --configuration <debug|release>  Build configuration (default: release)
   --arch <native|arm64|x86_64|universal>
                                    Output architecture (default: native)
-  --output <path>                  App bundle path (default: ./MacMonitor.app)
+  --output <path>                  App bundle path (default: ./DeviceMonitor.app)
   --identity <identity>            codesign identity; defaults to
-                                   MACMONITOR_SIGNING_IDENTITY when set
+                                   DEVICEMONITOR_SIGNING_IDENTITY when set
   -h, --help                       Show this help
 
 Without a signing identity the bundle is signed ad hoc. This is suitable for
 local development and verification, but not for distribution through
-Gatekeeper. Set MACMONITOR_SIGNING_IDENTITY to a Developer ID identity for a
+Gatekeeper. Set DEVICEMONITOR_SIGNING_IDENTITY to a Developer ID identity for a
 release build.
 EOF
 }
@@ -145,10 +145,10 @@ case "$architecture" in
         ;;
 esac
 
-print "Building MacMonitor ($configuration, $architecture)..."
+print "Building DeviceMonitor ($configuration, $architecture)..."
 swift build "${build_args[@]}"
 bin_dir="$(swift build "${build_args[@]}" --show-bin-path)"
-binary="$bin_dir/MacMonitor"
+binary="$bin_dir/DeviceMonitor"
 [[ -x "$binary" ]] || { print -u2 "Build did not produce executable: $binary"; exit 1; }
 
 actual_architectures="$(lipo -archs "$binary" 2>/dev/null || true)"
@@ -182,17 +182,17 @@ icon_file="$project_dir/App/AppIcon.icns"
 [[ -f "$icon_file" ]] || { print -u2 "Missing app icon: $icon_file"; exit 1; }
 rm -rf "$app_dir/Contents"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
-cp "$binary" "$app_dir/Contents/MacOS/MacMonitor"
+cp "$binary" "$app_dir/Contents/MacOS/DeviceMonitor"
 cp "$project_dir/App/Info.plist" "$app_dir/Contents/Info.plist"
 cp "$icon_file" "$app_dir/Contents/Resources/AppIcon.icns"
 
 if [[ -n "$signing_identity" ]]; then
     print "Signing with identity: $signing_identity"
-    codesign --force --options runtime --timestamp --sign "$signing_identity" "$app_dir/Contents/MacOS/MacMonitor"
+    codesign --force --options runtime --timestamp --sign "$signing_identity" "$app_dir/Contents/MacOS/DeviceMonitor"
     codesign --force --options runtime --timestamp --sign "$signing_identity" "$app_dir"
 else
-    print "Signing ad hoc (set MACMONITOR_SIGNING_IDENTITY for distribution)"
-    codesign --force --timestamp=none --sign - "$app_dir/Contents/MacOS/MacMonitor"
+    print "Signing ad hoc (set DEVICEMONITOR_SIGNING_IDENTITY for distribution)"
+    codesign --force --timestamp=none --sign - "$app_dir/Contents/MacOS/DeviceMonitor"
     codesign --force --timestamp=none --sign - "$app_dir"
 fi
 

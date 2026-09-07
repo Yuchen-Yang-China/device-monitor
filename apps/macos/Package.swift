@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "MacMonitor",
+    name: "DeviceMonitor",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "MacMonitor", targets: ["MacMonitor"])
+        .executable(name: "DeviceMonitor", targets: ["DeviceMonitor"])
     ],
     targets: [
         .target(
@@ -17,9 +17,9 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "MacMonitor",
+            name: "DeviceMonitor",
             dependencies: ["SensorBridge"],
-            path: "Sources/MacMonitor",
+            path: "Sources/DeviceMonitor",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("CryptoKit"),
@@ -30,9 +30,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "MacMonitorTests",
-            dependencies: ["MacMonitor"],
-            path: "Tests/MacMonitorTests"
+            name: "DeviceMonitorTests",
+            dependencies: ["DeviceMonitor"],
+            path: "Tests/DeviceMonitorTests"
         )
     ]
 )

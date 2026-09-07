@@ -5,20 +5,20 @@
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder}/apps/macos",
-            "name": "Debug MacMonitor",
-            "target": "MacMonitor",
+            "name": "Debug DeviceMonitor",
+            "target": "DeviceMonitor",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug MacMonitor"
+            "preLaunchTask": "swift: Build Debug DeviceMonitor"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
             "cwd": "${workspaceFolder}/apps/macos",
-            "name": "Release MacMonitor",
-            "target": "MacMonitor",
+            "name": "Release DeviceMonitor",
+            "target": "DeviceMonitor",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release MacMonitor"
+            "preLaunchTask": "swift: Build Release DeviceMonitor"
         }
     ]
 }

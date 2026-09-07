@@ -30,11 +30,11 @@ final class SystemMonitor: @unchecked Sendable {
         var isFailing = false
     }
 
-    private static let logger = Logger(subsystem: "com.macmonitor", category: "sampling")
+    private static let logger = Logger(subsystem: "com.yangyuchen.devicemonitor", category: "sampling")
     private static let failureLogInterval: TimeInterval = 60
 
     private let store: MonitorStore
-    private let samplingQueue = DispatchQueue(label: "com.macmonitor.sampling", qos: .utility)
+    private let samplingQueue = DispatchQueue(label: "com.yangyuchen.devicemonitor.sampling", qos: .utility)
     private var timer: DispatchSourceTimer?
     private var samplingProfile: SamplingProfile
     private var lastNetworkSampleAt: Date?

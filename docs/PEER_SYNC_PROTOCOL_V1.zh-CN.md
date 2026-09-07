@@ -1,6 +1,6 @@
 # Peer Status Protocol v1
 
-本文是 Mac Monitor 与 Windows Monitor 的互通合同。关键词“必须 / 不得 / 应当 / 可以”具有规范意义。
+本文是 Device Monitor 的 macOS 与 Windows 版本之间的互通合同。关键词“必须 / 不得 / 应当 / 可以”具有规范意义。
 
 ## 1. 传输模型
 

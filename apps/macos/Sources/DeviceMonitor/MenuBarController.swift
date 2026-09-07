@@ -113,8 +113,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         statusItem.button?.imagePosition = .imageOnly
         statusItem.button?.imageScaling = .scaleNone
         statusItem.button?.showsBorderOnlyWhileMouseInside = true
-        statusItem.button?.setAccessibilityLabel("Mac Monitor")
-        statusItem.button?.setAccessibilityHelp(peerConfiguration.language.text("Open the Mac Monitor dashboard", "打开 Mac Monitor 仪表盘"))
+        statusItem.button?.setAccessibilityLabel("Device Monitor")
+        statusItem.button?.setAccessibilityHelp(peerConfiguration.language.text("Open the Device Monitor dashboard", "打开 Device Monitor 仪表盘"))
         updateStatusItemSize()
 
         popover.behavior = .transient
@@ -202,7 +202,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] language in
                 self?.statusItem.button?.setAccessibilityHelp(
-                    language.text("Open the Mac Monitor dashboard", "打开 Mac Monitor 仪表盘")
+                    language.text("Open the Device Monitor dashboard", "打开 Device Monitor 仪表盘")
                 )
                 self?.updateStatusImage(force: true)
             }

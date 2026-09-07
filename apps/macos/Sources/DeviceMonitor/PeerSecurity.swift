@@ -78,10 +78,18 @@ extension Data {
 }
 
 enum PeerSecretStore {
-    private static let service = "com.yangyuchen.macmonitor.peer"
+    private static let service = "com.yangyuchen.devicemonitor.peer"
+    private static let legacyService = "com.yangyuchen.macmonitor.peer"
     private static let account = "pairing-secret-v1"
 
     static func load() -> String? {
+        if let value = load(service: service) { return value }
+        guard let legacyValue = load(service: legacyService) else { return nil }
+        try? save(legacyValue)
+        return legacyValue
+    }
+
+    private static func load(service: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

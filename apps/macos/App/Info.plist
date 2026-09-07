@@ -5,17 +5,17 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Mac Monitor</string>
+    <string>Device Monitor</string>
     <key>CFBundleExecutable</key>
-    <string>MacMonitor</string>
+    <string>DeviceMonitor</string>
     <key>CFBundleIdentifier</key>
-    <string>com.yangyuchen.macmonitor</string>
+    <string>com.yangyuchen.devicemonitor</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>CFBundleName</key>
-    <string>Mac Monitor</string>
+    <string>Device Monitor</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -29,6 +29,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Mac Monitor uses the local network only when you enable peer monitoring to exchange read-only device status with your paired computer.</string>
+	<string>Device Monitor uses the local network only when you enable peer monitoring to exchange read-only device status with your paired computer.</string>
 </dict>
 </plist>

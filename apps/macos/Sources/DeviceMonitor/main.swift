@@ -1,5 +1,27 @@
 import AppKit
 
+enum LegacyPreferencesMigration {
+    private static let legacyDomain = "com.yangyuchen.macmonitor"
+    private static let keys = [
+        "menuDisplayMode",
+        "showNetwork",
+        "samplingProfile",
+        "peer.enabled",
+        "peer.address",
+        "peer.deviceName",
+        "peer.deviceID",
+        "app.language"
+    ]
+
+    static func run() {
+        let defaults = UserDefaults.standard
+        guard let legacy = defaults.persistentDomain(forName: legacyDomain) else { return }
+        for key in keys where defaults.object(forKey: key) == nil {
+            if let value = legacy[key] { defaults.set(value, forKey: key) }
+        }
+    }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var store: MonitorStore?
@@ -10,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        LegacyPreferencesMigration.run()
 
         let store = MonitorStore()
         let settings = AppSettings()

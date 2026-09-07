@@ -33,9 +33,9 @@ expect_build_failure --output "$project_dir/not-an-app"
 expect_build_failure --output "$project_dir/.app"
 ./Scripts/build-app.sh --help >/dev/null
 
-if [[ "${MACMONITOR_VERIFY_APP:-0}" == 1 && -d "$project_dir/MacMonitor.app" ]]; then
+if [[ "${DEVICEMONITOR_VERIFY_APP:-0}" == 1 && -d "$project_dir/DeviceMonitor.app" ]]; then
     print "Verifying existing app bundle signature..."
-    codesign --verify --deep --strict "$project_dir/MacMonitor.app"
+    codesign --verify --deep --strict "$project_dir/DeviceMonitor.app"
 fi
 
 print "All local verification checks passed."

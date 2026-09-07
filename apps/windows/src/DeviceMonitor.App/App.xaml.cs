@@ -15,7 +15,7 @@ public partial class App : System.Windows.Application
         _pill.ToggleRequested += ToggleFlyout;
         _pill.OpenRequested += ShowOrHideWindow;
         _pill.QuitRequested += ShutdownApplicationAsync;
-        _pill.ShowOnTaskbar();
+        _pill.ShowNearTaskbar();
         if (e.Args.Contains("--show", StringComparer.OrdinalIgnoreCase)) _window.ShowNearTaskbar();
         if (e.Args.Contains("--show-flyout", StringComparer.OrdinalIgnoreCase)) _flyout.ShowNear(_pill);
         try { await _runtime.ApplyPeerSettingsAsync(); } catch (Exception exception) { _runtime.PeerConfigurationError = exception.Message; }

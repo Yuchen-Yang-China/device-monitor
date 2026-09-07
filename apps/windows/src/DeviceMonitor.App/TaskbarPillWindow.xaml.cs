@@ -31,7 +31,7 @@ public partial class TaskbarPillWindow : Window, IDisposable
         menu.Items.Add(_quitItem);
         PillButton.ContextMenu = menu;
 
-        Loaded += (_, _) => PositionOnTaskbar();
+        Loaded += (_, _) => PositionAboveTaskbar();
         _runtime.LocalStore.Changed += OnSnapshot;
         Localization.Changed += OnLanguageChanged;
         SystemEvents.DisplaySettingsChanged += DisplaySettingsChanged;
@@ -39,10 +39,10 @@ public partial class TaskbarPillWindow : Window, IDisposable
         OnSnapshot(_runtime.LocalStore.Snapshot);
     }
 
-    public void ShowOnTaskbar()
+    public void ShowNearTaskbar()
     {
         if (!IsVisible) Show();
-        PositionOnTaskbar();
+        PositionAboveTaskbar();
     }
 
     private void PillButton_Click(object sender, RoutedEventArgs e) => ToggleRequested?.Invoke();
@@ -67,26 +67,25 @@ public partial class TaskbarPillWindow : Window, IDisposable
         DownloadText.Text = $"↓ {StatusPresentation.CompactRate(value.Network.DownloadBytesPerSecond)}";
     });
 
-    private void DisplaySettingsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(PositionOnTaskbar);
+    private void DisplaySettingsChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(PositionAboveTaskbar);
 
-    private void PositionOnTaskbar()
+    private void PositionAboveTaskbar()
     {
         var screen = Forms.Screen.PrimaryScreen;
         if (screen is null) return;
         var dpi = VisualTreeHelper.GetDpi(this);
-        var bounds = screen.Bounds;
         var work = screen.WorkingArea;
         var widthPixels = Width * dpi.DpiScaleX;
         var heightPixels = Height * dpi.DpiScaleY;
-        var bottomTaskbarHeight = Math.Max(0, bounds.Bottom - work.Bottom);
 
+        // Keep the pill immediately above the Wi-Fi/volume area. Windows does not
+        // reserve variable-width notification-area slots, so the pill must stay
+        // in the desktop work area instead of covering the taskbar itself.
         var leftPixels = work.Right - widthPixels - 156 * dpi.DpiScaleX;
-        var topPixels = bottomTaskbarHeight >= heightPixels
-            ? work.Bottom + (bottomTaskbarHeight - heightPixels) / 2
-            : work.Bottom - heightPixels - 8 * dpi.DpiScaleY;
+        var topPixels = work.Bottom - heightPixels - 8 * dpi.DpiScaleY;
 
-        Left = Math.Max(bounds.Left, leftPixels) / dpi.DpiScaleX;
-        Top = Math.Max(bounds.Top, topPixels) / dpi.DpiScaleY;
+        Left = Math.Max(work.Left, leftPixels) / dpi.DpiScaleX;
+        Top = Math.Max(work.Top, topPixels) / dpi.DpiScaleY;
     }
 
     private static void UpdateBar(System.Windows.Shapes.Rectangle bar, double? value, HealthState state)

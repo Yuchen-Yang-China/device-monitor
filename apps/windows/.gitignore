@@ -1,0 +1,11 @@
+bin/
+obj/
+artifacts/
+.vs/
+TestResults/
+*.user
+*.suo
+*.exe
+*.msi
+*.pdb
+*.zip

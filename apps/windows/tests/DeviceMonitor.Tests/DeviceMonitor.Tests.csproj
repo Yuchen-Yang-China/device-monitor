@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DeviceMonitor.Protocol\DeviceMonitor.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\DeviceMonitor.Core\DeviceMonitor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\..\docs\examples\status-v1.json" Link="status-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\..\docs\status-v1.schema.json" Link="status-v1.schema.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\DeviceMonitor.App\Resources\Strings.en-US.xaml" Link="Strings.en-US.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\DeviceMonitor.App\Resources\Strings.zh-CN.xaml" Link="Strings.zh-CN.xaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

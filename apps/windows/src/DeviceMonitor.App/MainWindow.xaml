@@ -1,0 +1,84 @@
+<Window x:Class="DeviceMonitor.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DeviceMonitor.App"
+        Title="{DynamicResource AppTitle}" Icon="Assets/DeviceMonitor.ico" Width="420" Height="600" MinWidth="380" MinHeight="500"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="True" Background="#FFFDFDFD"
+        FontFamily="Segoe UI Variable Text, Segoe UI" Closing="Window_Closing" IsVisibleChanged="Window_IsVisibleChanged">
+    <Window.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/><Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/><Setter Property="Margin" Value="4"/>
+        </Style>
+        <Style x:Key="Metric" TargetType="TextBlock"><Setter Property="FontSize" Value="24"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+        <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource SubtleBrush}"/><Setter Property="FontSize" Value="12"/></Style>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid Margin="6,2,6,8">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel><TextBlock Text="{DynamicResource AppTitle}" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource AppSubtitle}" Style="{StaticResource Caption}"/></StackPanel>
+            <TextBlock x:Name="HeaderNetworkText" Grid.Column="1" VerticalAlignment="Center" FontFamily="Consolas" AutomationProperties.Name="Current network speed"/>
+        </Grid>
+        <TabControl x:Name="Tabs" Grid.Row="1" SelectionChanged="Tabs_SelectionChanged" BorderThickness="0" Background="Transparent">
+            <TabItem Header="{DynamicResource TabOverview}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"><Grid Margin="0,8">
+                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <Button Grid.Row="0" Grid.Column="0" Click="OpenCpu_Click" AutomationProperties.Name="{DynamicResource OpenCpuDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="CPU" FontWeight="SemiBold"/><TextBlock x:Name="OverviewCpuValue" Style="{StaticResource Metric}"/><TextBlock x:Name="OverviewCpuState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
+                    <Button Grid.Row="0" Grid.Column="1" Click="OpenMemory_Click" AutomationProperties.Name="{DynamicResource OpenMemoryDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="{DynamicResource LabelMemory}" FontWeight="SemiBold"/><TextBlock x:Name="OverviewMemoryValue" Style="{StaticResource Metric}"/><TextBlock x:Name="OverviewMemoryState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
+                    <Button Grid.Row="1" Grid.Column="0" Click="OpenThermal_Click" AutomationProperties.Name="{DynamicResource OpenTemperatureDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="{DynamicResource LabelTemperature}" FontWeight="SemiBold"/><TextBlock x:Name="OverviewThermalValue" Style="{StaticResource Metric}"/><TextBlock x:Name="OverviewThermalState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
+                    <Button Grid.Row="1" Grid.Column="1" Click="OpenNetwork_Click" AutomationProperties.Name="{DynamicResource OpenNetworkDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="{DynamicResource LabelNetwork}" FontWeight="SemiBold"/><TextBlock x:Name="OverviewNetworkValue" FontSize="16" FontWeight="SemiBold" FontFamily="Consolas"/><TextBlock x:Name="OverviewNetworkState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
+                </Grid></ScrollViewer>
+            </TabItem>
+            <TabItem Header="CPU">
+                <ScrollViewer><StackPanel Margin="8">
+                    <TextBlock x:Name="CpuValue" Style="{StaticResource Metric}"/><TextBlock x:Name="CpuState"/>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource Breakdown}" FontWeight="SemiBold"/><TextBlock x:Name="CpuBreakdown" FontFamily="Consolas" Margin="0,8,0,0"/><TextBlock x:Name="CpuTopology" Margin="0,8,0,0"/></StackPanel></Border>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource TopProcesses}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource ProcessNote}" Style="{StaticResource Caption}"/><ListBox x:Name="CpuProcesses" BorderThickness="0" Background="Transparent" FontFamily="Consolas"/></StackPanel></Border>
+                </StackPanel></ScrollViewer>
+            </TabItem>
+            <TabItem Header="{DynamicResource TabMemory}">
+                <ScrollViewer><StackPanel Margin="8">
+                    <TextBlock x:Name="MemoryValue" Style="{StaticResource Metric}"/><TextBlock x:Name="MemoryState"/>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource LastFiveMinutes}" FontWeight="SemiBold"/><local:MemoryTrendControl x:Name="LocalMemoryTrend" Height="130" Margin="0,8,0,4"/><TextBlock x:Name="MemoryStats" FontFamily="Consolas"/></StackPanel></Border>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource TopProcesses}" FontWeight="SemiBold"/><ListBox x:Name="MemoryProcesses" BorderThickness="0" Background="Transparent" FontFamily="Consolas"/></StackPanel></Border>
+                </StackPanel></ScrollViewer>
+            </TabItem>
+            <TabItem Header="{DynamicResource TabTemperature}">
+                <StackPanel Margin="8"><TextBlock x:Name="ThermalValue" Style="{StaticResource Metric}"/><TextBlock x:Name="ThermalState"/>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource SensorStatus}" FontWeight="SemiBold"/><TextBlock x:Name="ThermalDetails" Margin="0,8,0,0"/><Button x:Name="RestartElevatedButton" Content="{DynamicResource RestartAdmin}" Click="RestartElevated_Click" HorizontalAlignment="Left" Margin="0,10,0,0" Visibility="Collapsed"/></StackPanel></Border>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="{DynamicResource TabNetwork}">
+                <StackPanel Margin="8"><TextBlock x:Name="NetworkState" FontSize="18" FontWeight="SemiBold"/>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource CurrentRate}" FontWeight="SemiBold"/><TextBlock x:Name="NetworkRates" Style="{StaticResource Metric}" FontFamily="Consolas"/></StackPanel></Border>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource ThisSession}" FontWeight="SemiBold"/><TextBlock x:Name="NetworkSession" FontFamily="Consolas" Margin="0,8,0,0"/></StackPanel></Border>
+                    <TextBlock Text="{DynamicResource NetworkExplanation}" Style="{StaticResource Caption}" Margin="8"/>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="{DynamicResource TabDevices}">
+                <ScrollViewer><StackPanel Margin="8"><TextBlock x:Name="PeerAvailability" Style="{StaticResource Metric}"/><TextBlock x:Name="PeerIdentity"/><TextBlock x:Name="PeerLastSeen" Style="{StaticResource Caption}"/>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource RemoteSummary}" FontWeight="SemiBold"/><TextBlock x:Name="PeerSummary" FontFamily="Consolas" Margin="0,8,0,0"/></StackPanel></Border>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource RemoteMemoryTrend}" FontWeight="SemiBold"/><local:MemoryTrendControl x:Name="RemoteMemoryTrend" Height="130" Margin="0,8,0,0"/></StackPanel></Border>
+                </StackPanel></ScrollViewer>
+            </TabItem>
+            <TabItem Header="{DynamicResource TabSettings}">
+                <ScrollViewer><StackPanel Margin="8">
+                    <TextBlock Text="{DynamicResource Sampling}" FontWeight="SemiBold"/><ComboBox x:Name="SamplingModeBox" DisplayMemberPath="Name" Margin="0,6,0,12"/>
+                    <TextBlock Text="{DynamicResource Language}" FontWeight="SemiBold"/><ComboBox x:Name="LanguageBox" DisplayMemberPath="Name" Margin="0,6,0,12"/>
+                    <TextBlock Text="{DynamicResource ThisDeviceName}" FontWeight="SemiBold"/><TextBox x:Name="DeviceNameBox" MaxLength="80" Margin="0,6,0,12"/>
+                    <CheckBox x:Name="PeerEnabledCheck" Content="{DynamicResource EnablePeer}" Margin="0,2,0,12"/>
+                    <TextBlock Text="{DynamicResource ListenPrivate}" FontWeight="SemiBold"/><ComboBox x:Name="ListenAddressBox" Margin="0,6,0,12"/>
+                    <TextBlock Text="{DynamicResource PeerAddress}" FontWeight="SemiBold"/><TextBox x:Name="PeerAddressBox" Margin="0,6,0,12"/>
+                    <TextBlock Text="{DynamicResource PairingSecret}" FontWeight="SemiBold"/><PasswordBox x:Name="SecretBox" Margin="0,6,0,4" AutomationProperties.Name="{DynamicResource PairingSecretAccessible}"/>
+                    <TextBlock Text="{DynamicResource SecretHint}" Style="{StaticResource Caption}"/>
+                    <WrapPanel Margin="0,6,0,10"><Button Content="{DynamicResource Generate}" Click="GenerateSecret_Click"/><Button Content="{DynamicResource Copy}" Click="CopySecret_Click"/></WrapPanel>
+                    <WrapPanel><Button Content="{DynamicResource Save}" Click="SaveSettings_Click"/><Button Content="{DynamicResource TestConnection}" Click="TestConnection_Click"/></WrapPanel>
+                    <TextBlock x:Name="SettingsStatus" Margin="4,8"/>
+                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource NetworkSafety}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource FirewallNote}" Margin="0,8,0,0"/></StackPanel></Border>
+                </StackPanel></ScrollViewer>
+            </TabItem>
+        </TabControl>
+        <TextBlock x:Name="FooterStatus" Grid.Row="2" Margin="8,6,8,0" Style="{StaticResource Caption}"/>
+    </Grid>
+</Window>

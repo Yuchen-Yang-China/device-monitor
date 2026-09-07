@@ -1,0 +1,33 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <sys:String x:Key="AppTitle">Device Monitor</sys:String>
+    <sys:String x:Key="AppSubtitle">本机系统健康状态</sys:String>
+    <sys:String x:Key="TabOverview">概览</sys:String><sys:String x:Key="TabMemory">内存</sys:String><sys:String x:Key="TabTemperature">温度</sys:String><sys:String x:Key="TabNetwork">网络</sys:String><sys:String x:Key="TabDevices">设备</sys:String><sys:String x:Key="TabSettings">设置</sys:String>
+    <sys:String x:Key="LabelMemory">内存</sys:String><sys:String x:Key="LabelTemperature">温度</sys:String><sys:String x:Key="LabelNetwork">网络</sys:String>
+    <sys:String x:Key="Breakdown">使用率拆分</sys:String><sys:String x:Key="TopProcesses">资源占用最高的 3 个进程</sys:String><sys:String x:Key="ProcessNote">仅在 CPU 或内存详情打开时采集。</sys:String>
+    <sys:String x:Key="LastFiveMinutes">最近 5 分钟</sys:String><sys:String x:Key="SensorStatus">传感器状态</sys:String><sys:String x:Key="CurrentRate">当前速率</sys:String><sys:String x:Key="ThisSession">本次运行累计</sys:String>
+    <sys:String x:Key="NetworkExplanation">从 Windows 路由表选择活动物理接口。接口切换或计数器重置时会重新建立基线。</sys:String>
+    <sys:String x:Key="RemoteSummary">远端摘要</sys:String><sys:String x:Key="RemoteMemoryTrend">远端内存 · 最近 5 分钟</sys:String>
+    <sys:String x:Key="Sampling">采样档位</sys:String><sys:String x:Key="Language">语言</sys:String><sys:String x:Key="ThisDeviceName">本机名称</sys:String><sys:String x:Key="EnablePeer">启用对等设备监控</sys:String>
+    <sys:String x:Key="ListenPrivate">监听私网 IPv4</sys:String><sys:String x:Key="PeerAddress">对端地址（主机或主机:端口）</sys:String><sys:String x:Key="PairingSecret">配对密钥</sys:String>
+    <sys:String x:Key="SecretHint">留空可保留当前由 DPAPI 保护的密钥。</sys:String><sys:String x:Key="Generate">生成</sys:String><sys:String x:Key="Copy">复制</sys:String><sys:String x:Key="Save">保存</sys:String><sys:String x:Key="TestConnection">测试连接</sys:String>
+    <sys:String x:Key="NetworkSafety">网络安全</sys:String><sys:String x:Key="FirewallNote">应用不会自动开放 48621 端口。如被 Windows 防火墙拦截，只能为 Private 配置文件创建 TCP 48621 入站规则。不得将端口直接暴露到公网；异地访问请使用 Tailscale/WireGuard。</sys:String>
+    <sys:String x:Key="RestartAdmin">以管理员身份重新启动</sys:String>
+    <sys:String x:Key="StateNormal">正常</sys:String><sys:String x:Key="StateAttention">注意</sys:String><sys:String x:Key="StateCritical">严重</sys:String><sys:String x:Key="StateCollecting">正在采集</sys:String><sys:String x:Key="StateUnavailable">不可用</sys:String><sys:String x:Key="StateStale">数据已过期</sys:String>
+    <sys:String x:Key="PeerOnline">在线</sys:String><sys:String x:Key="PeerDegraded">状态下降</sys:String><sys:String x:Key="PeerOffline">离线</sys:String><sys:String x:Key="ClockMismatch">时钟不一致</sys:String>
+    <sys:String x:Key="SamplingBalanced">平衡</sys:String><sys:String x:Key="SamplingLowPower">低功耗</sys:String><sys:String x:Key="SamplingResponsive">快速响应</sys:String><sys:String x:Key="LanguageEnglish">英语</sys:String><sys:String x:Key="LanguageChinese">简体中文</sys:String>
+    <sys:String x:Key="MenuOpen">打开 Device Monitor</sys:String><sys:String x:Key="MenuQuit">退出</sys:String>
+    <sys:String x:Key="OpenCpuDetails">打开 CPU 详情</sys:String><sys:String x:Key="OpenMemoryDetails">打开内存详情</sys:String><sys:String x:Key="OpenTemperatureDetails">打开温度详情</sys:String><sys:String x:Key="OpenNetworkDetails">打开网络详情</sys:String><sys:String x:Key="PairingSecretAccessible">配对密钥；留空可保留当前值</sys:String>
+    <sys:String x:Key="NoSensors">未检测到可靠的 CPU 或存储温度传感器。设备监视器不会用 CPU 使用率估算温度。</sys:String>
+    <sys:String x:Key="SensorsNeedAdmin">标准用户进程无法访问硬件传感器。请以管理员身份重新启动以读取真实 CPU 和存储温度；应用绝不会估算数值。</sys:String>
+    <sys:String x:Key="GpuOnlyStatus">CPU 不可用 · 已读取 GPU 传感器</sys:String>
+    <sys:String x:Key="CpuAverage">CPU 平均</sys:String><sys:String x:Key="CpuHottest">CPU 最高</sys:String><sys:String x:Key="GpuTemperature">显卡</sys:String><sys:String x:Key="Storage">SSD / 存储</sys:String>
+    <sys:String x:Key="User">用户</sys:String><sys:String x:Key="System">系统</sys:String><sys:String x:Key="Idle">空闲</sys:String><sys:String x:Key="Uploaded">已上传</sys:String><sys:String x:Key="Downloaded">已下载</sys:String>
+    <sys:String x:Key="PeerDisabled">对等设备监控已关闭。</sys:String><sys:String x:Key="NoRemoteData">暂无远端数据</sys:String><sys:String x:Key="WaitingPeer">正在等待对端…</sys:String><sys:String x:Key="NoValidResponse">尚未收到有效响应</sys:String>
+    <sys:String x:Key="Testing">正在测试…</sys:String><sys:String x:Key="Saving">正在保存…</sys:String><sys:String x:Key="ConnectionSucceeded">连接成功。</sys:String><sys:String x:Key="SecretGenerated">已生成新密钥，保存后生效。</sys:String><sys:String x:Key="SecretCopied">配对密钥已复制到剪贴板。</sys:String>
+    <sys:String x:Key="SettingsSavedDisabled">已保存，对等设备监控已关闭。</sys:String><sys:String x:Key="ErrorSelectPrivate">启用对等设备监控前，请选择当前有效的私网 IPv4 接口。</sys:String><sys:String x:Key="ErrorPeerAddress">对端地址必须是主机名或主机:端口；默认端口为 48621。</sys:String>
+    <sys:String x:Key="ErrorSecretLength">配对密钥解码后必须恰好为 32 字节。</sys:String>
+    <sys:String x:Key="ElevationFailed">无法以管理员身份重新启动。</sys:String>
+    <sys:String x:Key="CpuTopologyFormat">{0} 个逻辑处理器 · 无法识别混合核心拓扑</sys:String><sys:String x:Key="AveragePeakFormat">平均 {0:0.0}%    峰值 {1:0.0}%</sys:String><sys:String x:Key="LastReceivedFormat">最后接收：{0}</sys:String><sys:String x:Key="SavedListeningFormat">已保存。监听地址：{0}</sys:String><sys:String x:Key="NoValidResponseFormat">无有效响应：{0}</sys:String><sys:String x:Key="UpdatedFormat">更新时间 {0} · {1} / {2} / {3}</sys:String>
+</ResourceDictionary>

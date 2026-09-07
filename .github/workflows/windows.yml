@@ -1,0 +1,37 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/windows/**"
+      - "docs/**"
+      - "shared/assets/windows/**"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "apps/windows/**"
+      - "docs/**"
+      - "shared/assets/windows/**"
+      - ".github/workflows/windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore, build, and test
+        shell: pwsh
+        run: ./build.ps1

@@ -1,0 +1,17 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+  <Bundle Name="Device Monitor"
+          Manufacturer="Device Monitor"
+          Version="0.1.0.0"
+          UpgradeCode="2A1D26A2-55B7-4246-A0C8-ECD21A33EB6B"
+          IconSourceFile="..\..\..\..\shared\assets\windows\DeviceMonitor.ico">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
+                                              LicenseUrl=""
+                                              LogoFile="..\..\..\..\shared\assets\windows\DeviceMonitor-1024.png" />
+    </BootstrapperApplication>
+    <Chain>
+      <MsiPackage SourceFile="$(var.DeviceMonitor.Package.TargetPath)" />
+    </Chain>
+  </Bundle>
+</Wix>

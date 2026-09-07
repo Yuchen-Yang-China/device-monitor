@@ -34,6 +34,22 @@ Windows 工程统一放在 `apps/windows/`，不要在该目录内再次执行 `
 
 Windows 图标素材位于 [shared/assets/windows](shared/assets/windows)。
 
+在 Windows PowerShell 中执行完整构建与测试：
+
+```powershell
+cd apps/windows
+.\build.ps1
+```
+
+构建、测试、自包含发布并生成安装包：
+
+```powershell
+cd apps/windows
+.\build.ps1 -Publish
+```
+
+Windows 详细运行、温度传感器和 Peer 配置说明见 [apps/windows/README.md](apps/windows/README.md)。
+
 ## 协作规则
 
 - `docs/PEER_SYNC_PROTOCOL_V1.zh-CN.md` 和 `docs/status-v1.schema.json` 是两端互通合同；破坏兼容性的修改必须升级协议版本。

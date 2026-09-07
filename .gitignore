@@ -1,7 +1,7 @@
 # macOS / SwiftPM
 **/.build/
 **/DerivedData/
-**/*.app/
+/apps/macos/**/*.app/
 *.dSYM/
 
 # Windows / .NET / Visual Studio
@@ -9,6 +9,7 @@
 **/obj/
 **/.vs/
 **/TestResults/
+**/artifacts/
 *.user
 *.suo
 
@@ -19,6 +20,9 @@
 *.msix
 *.msixbundle
 *.appinstaller
+*.exe
+*.msi
+*.pdb
 
 # Editors and operating systems
 .DS_Store

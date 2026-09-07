@@ -1,0 +1,39 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Device Monitor"
+           Manufacturer="Device Monitor"
+           Version="0.1.0"
+           UpgradeCode="CAFBBF84-DD7E-471C-8AE7-369834B63DF3"
+           Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Device Monitor is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="DeviceMonitor.ico" SourceFile="..\..\..\..\shared\assets\windows\DeviceMonitor.ico" />
+    <Property Id="ARPPRODUCTICON" Value="DeviceMonitor.ico" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Device Monitor" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Device Monitor" Level="1">
+      <ComponentGroupRef Id="PublishedFiles" />
+    </Feature>
+
+    <ComponentGroup Id="PublishedFiles" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="*">
+        <File Id="DeviceMonitorExe" Source="!(bindpath.Published)\Device Monitor.exe" KeyPath="yes">
+             <Shortcut Id="StartMenuShortcut"
+                       Directory="ProgramMenuFolder"
+                       Name="Device Monitor"
+                       Description="Device Monitor"
+                       Advertise="yes"
+                       WorkingDirectory="INSTALLFOLDER"
+                       Icon="DeviceMonitor.ico" />
+        </File>
+      </Component>
+      <Files Include="!(bindpath.Published)\**">
+        <Exclude Files="!(bindpath.Published)\Device Monitor.exe" />
+        <Exclude Files="!(bindpath.Published)\**\*.pdb" />
+      </Files>
+    </ComponentGroup>
+  </Package>
+</Wix>

@@ -24,6 +24,7 @@
     <sys:String x:Key="GpuOnlyStatus">CPU 不可用 · 已读取 GPU 传感器</sys:String>
     <sys:String x:Key="CpuAverage">CPU 平均</sys:String><sys:String x:Key="CpuHottest">CPU 最高</sys:String><sys:String x:Key="GpuTemperature">显卡</sys:String><sys:String x:Key="Storage">SSD / 存储</sys:String>
     <sys:String x:Key="User">用户</sys:String><sys:String x:Key="System">系统</sys:String><sys:String x:Key="Idle">空闲</sys:String><sys:String x:Key="Uploaded">已上传</sys:String><sys:String x:Key="Downloaded">已下载</sys:String>
+    <sys:String x:Key="LocalDeviceStatus">本机设备状态</sys:String><sys:String x:Key="LiveStatus">实时</sys:String><sys:String x:Key="Upload">上传</sys:String><sys:String x:Key="Download">下载</sys:String><sys:String x:Key="FlyoutDismissHint">再次点击任务栏胶囊即可收起</sys:String><sys:String x:Key="TaskbarPillTooltip">Device Monitor：左键查看状态，右键打开菜单</sys:String>
     <sys:String x:Key="PeerDisabled">对等设备监控已关闭。</sys:String><sys:String x:Key="NoRemoteData">暂无远端数据</sys:String><sys:String x:Key="WaitingPeer">正在等待对端…</sys:String><sys:String x:Key="NoValidResponse">尚未收到有效响应</sys:String>
     <sys:String x:Key="Testing">正在测试…</sys:String><sys:String x:Key="Saving">正在保存…</sys:String><sys:String x:Key="ConnectionSucceeded">连接成功。</sys:String><sys:String x:Key="SecretGenerated">已生成新密钥，保存后生效。</sys:String><sys:String x:Key="SecretCopied">配对密钥已复制到剪贴板。</sys:String>
     <sys:String x:Key="SettingsSavedDisabled">已保存，对等设备监控已关闭。</sys:String><sys:String x:Key="ErrorSelectPrivate">启用对等设备监控前，请选择当前有效的私网 IPv4 接口。</sys:String><sys:String x:Key="ErrorPeerAddress">对端地址必须是主机名或主机:端口；默认端口为 48621。</sys:String>

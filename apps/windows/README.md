@@ -25,7 +25,8 @@ dotnet run --project src/DeviceMonitor.App/DeviceMonitor.App.csproj
 
 ## 功能
 
-- 三段压力条托盘图标与 CPU、内存、网络 tooltip；左键切换靠近任务栏的浮层，右键打开菜单
+- 任务栏胶囊常驻显示三段加粗状态柱（CPU、内存、SSD）以及上下行实时网速；左键以向上滑入并轻微回弹的动画切换状态浮窗，右键打开详情/退出菜单
+- 状态柱颜色固定为正常绿色、注意橙色、严重红色、采集中蓝色、不可用或过期灰色；SSD 不可用时保持灰色且不估算温度
 - CPU、内存、温度和网络详情；本机与远端内存 5 分钟趋势
 - 简体中文与英文，可在 Settings/设置中即时切换并持久化
 - Balanced、Low power、Responsive 三档采样
@@ -54,6 +55,8 @@ dotnet run --project src/DeviceMonitor.App/DeviceMonitor.App.csproj
 协议实现与 UI/Windows 采样域模型分离。认证窗口固定为 120 秒，nonce 保留 5 分钟，响应体上限固定为 64 KiB；轮询为 5 秒，失败退避为 5/10/20/30 秒，15 秒无有效响应显示 Offline。
 
 Windows 按 Peer Status Protocol v1 使用 `metrics.thermal.gpuCelsius` 和 `metrics.thermal.storageCelsius` 发送 GPU/主存储温度，并始终显式发送不可用核心指标的 JSON `null`。接收端允许 Mac 省略 `gpuCelsius` 或发送 `null`；Windows 不发送早期兼容名 `ssdCelsius`/`ssdTemperature`。
+
+开发时可使用 `Device Monitor.exe --show-flyout` 直接打开状态浮窗，便于检查布局与动画终态；正常启动仍只显示任务栏胶囊。
 
 温度读取使用 MPL-2.0 许可的 `LibreHardwareMonitorLib` 0.9.6，项目与许可证见 <https://github.com/LibreHardwareMonitor/LibreHardwareMonitor>。
 

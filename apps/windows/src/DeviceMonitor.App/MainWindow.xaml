@@ -2,83 +2,154 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:DeviceMonitor.App"
-        Title="{DynamicResource AppTitle}" Icon="Assets/DeviceMonitor.ico" Width="420" Height="600" MinWidth="380" MinHeight="500"
-        WindowStartupLocation="CenterScreen" ShowInTaskbar="True" Background="#FFFDFDFD"
-        FontFamily="Segoe UI Variable Text, Segoe UI" Closing="Window_Closing" IsVisibleChanged="Window_IsVisibleChanged">
+        Title="{DynamicResource AppTitle}" Icon="Assets/DeviceMonitor.ico"
+        Width="428" Height="650" MinWidth="400" MinHeight="560"
+        WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
+        WindowStartupLocation="Manual" ShowInTaskbar="True" Background="Transparent"
+        FontFamily="Segoe UI Variable Text, Segoe UI" Foreground="#FF172033"
+        Closing="Window_Closing" IsVisibleChanged="Window_IsVisibleChanged"
+        PreviewKeyDown="Window_PreviewKeyDown">
     <Window.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF0F6CBD"/>
+        <SolidColorBrush x:Key="CardSurfaceBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#FF667085"/>
+
         <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBrush}"/><Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="14"/><Setter Property="Margin" Value="4"/>
+            <Setter Property="Background" Value="{StaticResource CardSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="#140B1220"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,5"/>
         </Style>
-        <Style x:Key="Metric" TargetType="TextBlock"><Setter Property="FontSize" Value="24"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
-        <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource SubtleBrush}"/><Setter Property="FontSize" Value="12"/></Style>
+        <Style x:Key="Metric" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="Segoe UI Variable Display, Segoe UI"/>
+        </Style>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#FF344054"/>
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#FFF2F6FA"/>
+            <Setter Property="Foreground" Value="#FF172033"/>
+            <Setter Property="BorderBrush" Value="#1A0B1220"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="13,8"/>
+            <Setter Property="Margin" Value="0,2,8,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="OverviewCard" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#140B1220"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#FFF6FAFE"/><Setter TargetName="Surface" Property="BorderBrush" Value="#3D0F6CBD"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#FFEAF3FB"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource AccentBrush}"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <Border Background="#140B1220" CornerRadius="11" Padding="3" Margin="0,0,0,8"><TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/></Border>
+                            <ContentPresenter Grid.Row="1" ContentSource="SelectedContent"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#FF667085"/>
+            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabSurface" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}"><ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/></Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="White"/><Setter Property="Foreground" Value="#FF172033"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="#BFFFFFFF"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox"><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#FFD8DEE8"/><Setter Property="BorderThickness" Value="1"/></Style>
+        <Style TargetType="PasswordBox"><Setter Property="Padding" Value="10,8"/><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#FFD8DEE8"/><Setter Property="BorderThickness" Value="1"/></Style>
+        <Style TargetType="ComboBox"><Setter Property="Padding" Value="9,7"/><Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#FFD8DEE8"/></Style>
     </Window.Resources>
-    <Grid Margin="12">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <Grid Margin="6,2,6,8">
-            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel><TextBlock Text="{DynamicResource AppTitle}" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource AppSubtitle}" Style="{StaticResource Caption}"/></StackPanel>
-            <TextBlock x:Name="HeaderNetworkText" Grid.Column="1" VerticalAlignment="Center" FontFamily="Consolas" AutomationProperties.Name="Current network speed"/>
+
+    <Border Margin="10" Background="#FFF5F7FA" BorderBrush="#260B1220" BorderThickness="1" CornerRadius="18">
+        <Border.Effect><DropShadowEffect BlurRadius="24" ShadowDepth="5" Opacity="0.24" Color="#FF111827"/></Border.Effect>
+        <Grid Margin="18,16,18,12">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="12"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Border Grid.RowSpan="2" Width="42" Height="42" VerticalAlignment="Top" Background="#FF101820" CornerRadius="11" Margin="0,0,11,0"><Image Source="Assets/DeviceMonitor.ico" Width="32" Height="32" Stretch="Uniform"/></Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{DynamicResource AppTitle}" FontSize="19" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource AppSubtitle}" Style="{StaticResource Caption}" Margin="0,1,0,0"/></StackPanel>
+                <Button Grid.Column="2" Content="×" Width="30" Height="30" Padding="0" Margin="0" FontSize="18" Background="Transparent" BorderThickness="0" Foreground="#FF667085" Click="Hide_Click" ToolTip="Close" Cursor="Hand"/>
+                <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" Background="#FFFFFFFF" BorderBrush="#120B1220" BorderThickness="1" CornerRadius="10" Padding="9,6" Margin="0,8,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="34" Height="24" VerticalAlignment="Center" AutomationProperties.Name="CPU, memory, and temperature pressure">
+                            <Border Width="7" Height="22" HorizontalAlignment="Left" Background="#FFE8ECF2" CornerRadius="3" VerticalAlignment="Bottom"><Rectangle x:Name="HeaderCpuBar" Height="4" Fill="#FF98A2B3" RadiusX="3" RadiusY="3" VerticalAlignment="Bottom"/></Border>
+                            <Border Width="7" Height="22" HorizontalAlignment="Center" Background="#FFE8ECF2" CornerRadius="3" VerticalAlignment="Bottom"><Rectangle x:Name="HeaderMemoryBar" Height="4" Fill="#FF98A2B3" RadiusX="3" RadiusY="3" VerticalAlignment="Bottom"/></Border>
+                            <Border Width="7" Height="22" HorizontalAlignment="Right" Background="#FFE8ECF2" CornerRadius="3" VerticalAlignment="Bottom"><Rectangle x:Name="HeaderThermalBar" Height="4" Fill="#FF98A2B3" RadiusX="3" RadiusY="3" VerticalAlignment="Bottom"/></Border>
+                        </Grid>
+                        <Border Width="1" Height="22" Background="#FFE4E7EC" Margin="9,0"/>
+                        <TextBlock x:Name="HeaderNetworkText" VerticalAlignment="Center" FontFamily="Cascadia Mono, Consolas" FontSize="11" AutomationProperties.Name="Current network speed"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <TabControl x:Name="Tabs" Grid.Row="2" SelectionChanged="Tabs_SelectionChanged">
+                <TabItem Header="{DynamicResource TabOverview}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"><Grid Margin="-5,0">
+                        <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource OverviewCard}" Height="151" Click="OpenCpu_Click" AutomationProperties.Name="{DynamicResource OpenCpuDetails}"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="#FF0F6CBD" Margin="0,0,7,0"/><TextBlock Text="CPU" FontWeight="SemiBold"/></StackPanel><TextBlock x:Name="OverviewCpuValue" Grid.Row="1" Style="{StaticResource Metric}" VerticalAlignment="Center"/><TextBlock x:Name="OverviewCpuState" Grid.Row="2" Style="{StaticResource Caption}"/></Grid></Button>
+                        <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource OverviewCard}" Height="151" Click="OpenMemory_Click" AutomationProperties.Name="{DynamicResource OpenMemoryDetails}"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="#FF7A5AF8" Margin="0,0,7,0"/><TextBlock Text="{DynamicResource LabelMemory}" FontWeight="SemiBold"/></StackPanel><TextBlock x:Name="OverviewMemoryValue" Grid.Row="1" Style="{StaticResource Metric}" VerticalAlignment="Center"/><TextBlock x:Name="OverviewMemoryState" Grid.Row="2" Style="{StaticResource Caption}"/></Grid></Button>
+                        <Button Grid.Row="1" Grid.Column="0" Style="{StaticResource OverviewCard}" Height="151" Click="OpenThermal_Click" AutomationProperties.Name="{DynamicResource OpenTemperatureDetails}"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="#FFF79009" Margin="0,0,7,0"/><TextBlock Text="{DynamicResource LabelTemperature}" FontWeight="SemiBold"/></StackPanel><TextBlock x:Name="OverviewThermalValue" Grid.Row="1" Style="{StaticResource Metric}" FontSize="23" VerticalAlignment="Center"/><TextBlock x:Name="OverviewThermalState" Grid.Row="2" Style="{StaticResource Caption}"/></Grid></Button>
+                        <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource OverviewCard}" Height="151" Click="OpenNetwork_Click" AutomationProperties.Name="{DynamicResource OpenNetworkDetails}"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="#FF12B76A" Margin="0,0,7,0"/><TextBlock Text="{DynamicResource LabelNetwork}" FontWeight="SemiBold"/></StackPanel><TextBlock x:Name="OverviewNetworkValue" Grid.Row="1" FontSize="16" FontWeight="SemiBold" FontFamily="Cascadia Mono, Consolas" VerticalAlignment="Center"/><TextBlock x:Name="OverviewNetworkState" Grid.Row="2" Style="{StaticResource Caption}"/></Grid></Button>
+                    </Grid></ScrollViewer>
+                </TabItem>
+                <TabItem Header="CPU"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="1,0,1,6"><Border Style="{StaticResource Card}"><StackPanel><TextBlock x:Name="CpuValue" Style="{StaticResource Metric}"/><TextBlock x:Name="CpuState" Style="{StaticResource Caption}"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource Breakdown}" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="CpuBreakdown" FontFamily="Cascadia Mono, Consolas" Margin="0,10,0,0"/><TextBlock x:Name="CpuTopology" Style="{StaticResource Caption}" Margin="0,10,0,0"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource TopProcesses}" Style="{StaticResource SectionTitle}"/><TextBlock Text="{DynamicResource ProcessNote}" Style="{StaticResource Caption}" Margin="0,3,0,8"/><ListBox x:Name="CpuProcesses" BorderThickness="0" Background="Transparent" FontFamily="Cascadia Mono, Consolas"/></StackPanel></Border></StackPanel></ScrollViewer></TabItem>
+                <TabItem Header="{DynamicResource TabMemory}"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="1,0,1,6"><Border Style="{StaticResource Card}"><StackPanel><TextBlock x:Name="MemoryValue" Style="{StaticResource Metric}" FontSize="23"/><TextBlock x:Name="MemoryState" Style="{StaticResource Caption}"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource LastFiveMinutes}" Style="{StaticResource SectionTitle}"/><local:MemoryTrendControl x:Name="LocalMemoryTrend" Height="132" Margin="0,10,0,7"/><TextBlock x:Name="MemoryStats" FontFamily="Cascadia Mono, Consolas"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource TopProcesses}" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/><ListBox x:Name="MemoryProcesses" BorderThickness="0" Background="Transparent" FontFamily="Cascadia Mono, Consolas"/></StackPanel></Border></StackPanel></ScrollViewer></TabItem>
+                <TabItem Header="{DynamicResource TabTemperature}"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="1,0,1,6"><Border Style="{StaticResource Card}"><StackPanel><TextBlock x:Name="ThermalValue" Style="{StaticResource Metric}"/><TextBlock x:Name="ThermalState" Style="{StaticResource Caption}"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource SensorStatus}" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="ThermalDetails" FontFamily="Cascadia Mono, Consolas" Margin="0,12,0,0" LineHeight="24"/><Button x:Name="RestartElevatedButton" Style="{StaticResource ActionButton}" Content="{DynamicResource RestartAdmin}" Click="RestartElevated_Click" HorizontalAlignment="Left" Margin="0,14,0,0" Visibility="Collapsed"/></StackPanel></Border></StackPanel></ScrollViewer></TabItem>
+                <TabItem Header="{DynamicResource TabNetwork}"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="1,0,1,6"><Border Style="{StaticResource Card}"><StackPanel><TextBlock x:Name="NetworkState" FontSize="14" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource CurrentRate}" Style="{StaticResource Caption}" Margin="0,4,0,0"/><TextBlock x:Name="NetworkRates" Style="{StaticResource Metric}" FontFamily="Cascadia Mono, Consolas" Margin="0,8,0,0"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource ThisSession}" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="NetworkSession" FontFamily="Cascadia Mono, Consolas" Margin="0,10,0,0" LineHeight="24"/></StackPanel></Border><TextBlock Text="{DynamicResource NetworkExplanation}" Style="{StaticResource Caption}" Margin="8,9"/></StackPanel></ScrollViewer></TabItem>
+                <TabItem Header="{DynamicResource TabDevices}"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="1,0,1,6"><Border Style="{StaticResource Card}"><StackPanel><TextBlock x:Name="PeerAvailability" Style="{StaticResource Metric}"/><TextBlock x:Name="PeerIdentity" Margin="0,2,0,0"/><TextBlock x:Name="PeerLastSeen" Style="{StaticResource Caption}" Margin="0,4,0,0"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource RemoteSummary}" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="PeerSummary" FontFamily="Cascadia Mono, Consolas" Margin="0,10,0,0" LineHeight="22"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource RemoteMemoryTrend}" Style="{StaticResource SectionTitle}"/><local:MemoryTrendControl x:Name="RemoteMemoryTrend" Height="132" Margin="0,10,0,0"/></StackPanel></Border></StackPanel></ScrollViewer></TabItem>
+                <TabItem Header="{DynamicResource TabSettings}"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="1,0,7,10"><Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource Sampling}" Style="{StaticResource SectionTitle}"/><ComboBox x:Name="SamplingModeBox" DisplayMemberPath="Name" Margin="0,6,0,13"/><TextBlock Text="{DynamicResource Language}" Style="{StaticResource SectionTitle}"/><ComboBox x:Name="LanguageBox" DisplayMemberPath="Name" Margin="0,6,0,13"/><TextBlock Text="{DynamicResource ThisDeviceName}" Style="{StaticResource SectionTitle}"/><TextBox x:Name="DeviceNameBox" MaxLength="80" Margin="0,6,0,2"/></StackPanel></Border><Border Style="{StaticResource Card}"><StackPanel><CheckBox x:Name="PeerEnabledCheck" Content="{DynamicResource EnablePeer}" FontWeight="SemiBold" Margin="0,0,0,13"/><TextBlock Text="{DynamicResource ListenPrivate}" Style="{StaticResource SectionTitle}"/><ComboBox x:Name="ListenAddressBox" Margin="0,6,0,13"/><TextBlock Text="{DynamicResource PeerAddress}" Style="{StaticResource SectionTitle}"/><TextBox x:Name="PeerAddressBox" Margin="0,6,0,13"/><TextBlock Text="{DynamicResource PairingSecret}" Style="{StaticResource SectionTitle}"/><PasswordBox x:Name="SecretBox" Margin="0,6,0,4" AutomationProperties.Name="{DynamicResource PairingSecretAccessible}"/><TextBlock Text="{DynamicResource SecretHint}" Style="{StaticResource Caption}"/><WrapPanel Margin="0,8,0,6"><Button Style="{StaticResource ActionButton}" Content="{DynamicResource Generate}" Click="GenerateSecret_Click"/><Button Style="{StaticResource ActionButton}" Content="{DynamicResource Copy}" Click="CopySecret_Click"/></WrapPanel><WrapPanel><Button Style="{StaticResource ActionButton}" Background="#FF0F6CBD" Foreground="White" Content="{DynamicResource Save}" Click="SaveSettings_Click"/><Button Style="{StaticResource ActionButton}" Content="{DynamicResource TestConnection}" Click="TestConnection_Click"/></WrapPanel><TextBlock x:Name="SettingsStatus" Margin="2,8,2,0"/></StackPanel></Border><Border Style="{StaticResource Card}" Background="#FFFFFAEB" BorderBrush="#33F79009"><StackPanel><TextBlock Text="{DynamicResource NetworkSafety}" Style="{StaticResource SectionTitle}"/><TextBlock Text="{DynamicResource FirewallNote}" Style="{StaticResource Caption}" Margin="0,7,0,0"/></StackPanel></Border></StackPanel></ScrollViewer></TabItem>
+            </TabControl>
+            <Border Grid.Row="3" BorderBrush="#120B1220" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="2,9,2,0"><TextBlock x:Name="FooterStatus" Style="{StaticResource Caption}"/></Border>
         </Grid>
-        <TabControl x:Name="Tabs" Grid.Row="1" SelectionChanged="Tabs_SelectionChanged" BorderThickness="0" Background="Transparent">
-            <TabItem Header="{DynamicResource TabOverview}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto"><Grid Margin="0,8">
-                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                    <Button Grid.Row="0" Grid.Column="0" Click="OpenCpu_Click" AutomationProperties.Name="{DynamicResource OpenCpuDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="CPU" FontWeight="SemiBold"/><TextBlock x:Name="OverviewCpuValue" Style="{StaticResource Metric}"/><TextBlock x:Name="OverviewCpuState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
-                    <Button Grid.Row="0" Grid.Column="1" Click="OpenMemory_Click" AutomationProperties.Name="{DynamicResource OpenMemoryDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="{DynamicResource LabelMemory}" FontWeight="SemiBold"/><TextBlock x:Name="OverviewMemoryValue" Style="{StaticResource Metric}"/><TextBlock x:Name="OverviewMemoryState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
-                    <Button Grid.Row="1" Grid.Column="0" Click="OpenThermal_Click" AutomationProperties.Name="{DynamicResource OpenTemperatureDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="{DynamicResource LabelTemperature}" FontWeight="SemiBold"/><TextBlock x:Name="OverviewThermalValue" Style="{StaticResource Metric}"/><TextBlock x:Name="OverviewThermalState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
-                    <Button Grid.Row="1" Grid.Column="1" Click="OpenNetwork_Click" AutomationProperties.Name="{DynamicResource OpenNetworkDetails}"><Border Style="{StaticResource Card}" Width="155" Height="130"><StackPanel><TextBlock Text="{DynamicResource LabelNetwork}" FontWeight="SemiBold"/><TextBlock x:Name="OverviewNetworkValue" FontSize="16" FontWeight="SemiBold" FontFamily="Consolas"/><TextBlock x:Name="OverviewNetworkState" Style="{StaticResource Caption}"/></StackPanel></Border></Button>
-                </Grid></ScrollViewer>
-            </TabItem>
-            <TabItem Header="CPU">
-                <ScrollViewer><StackPanel Margin="8">
-                    <TextBlock x:Name="CpuValue" Style="{StaticResource Metric}"/><TextBlock x:Name="CpuState"/>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource Breakdown}" FontWeight="SemiBold"/><TextBlock x:Name="CpuBreakdown" FontFamily="Consolas" Margin="0,8,0,0"/><TextBlock x:Name="CpuTopology" Margin="0,8,0,0"/></StackPanel></Border>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource TopProcesses}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource ProcessNote}" Style="{StaticResource Caption}"/><ListBox x:Name="CpuProcesses" BorderThickness="0" Background="Transparent" FontFamily="Consolas"/></StackPanel></Border>
-                </StackPanel></ScrollViewer>
-            </TabItem>
-            <TabItem Header="{DynamicResource TabMemory}">
-                <ScrollViewer><StackPanel Margin="8">
-                    <TextBlock x:Name="MemoryValue" Style="{StaticResource Metric}"/><TextBlock x:Name="MemoryState"/>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource LastFiveMinutes}" FontWeight="SemiBold"/><local:MemoryTrendControl x:Name="LocalMemoryTrend" Height="130" Margin="0,8,0,4"/><TextBlock x:Name="MemoryStats" FontFamily="Consolas"/></StackPanel></Border>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource TopProcesses}" FontWeight="SemiBold"/><ListBox x:Name="MemoryProcesses" BorderThickness="0" Background="Transparent" FontFamily="Consolas"/></StackPanel></Border>
-                </StackPanel></ScrollViewer>
-            </TabItem>
-            <TabItem Header="{DynamicResource TabTemperature}">
-                <StackPanel Margin="8"><TextBlock x:Name="ThermalValue" Style="{StaticResource Metric}"/><TextBlock x:Name="ThermalState"/>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource SensorStatus}" FontWeight="SemiBold"/><TextBlock x:Name="ThermalDetails" Margin="0,8,0,0"/><Button x:Name="RestartElevatedButton" Content="{DynamicResource RestartAdmin}" Click="RestartElevated_Click" HorizontalAlignment="Left" Margin="0,10,0,0" Visibility="Collapsed"/></StackPanel></Border>
-                </StackPanel>
-            </TabItem>
-            <TabItem Header="{DynamicResource TabNetwork}">
-                <StackPanel Margin="8"><TextBlock x:Name="NetworkState" FontSize="18" FontWeight="SemiBold"/>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource CurrentRate}" FontWeight="SemiBold"/><TextBlock x:Name="NetworkRates" Style="{StaticResource Metric}" FontFamily="Consolas"/></StackPanel></Border>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource ThisSession}" FontWeight="SemiBold"/><TextBlock x:Name="NetworkSession" FontFamily="Consolas" Margin="0,8,0,0"/></StackPanel></Border>
-                    <TextBlock Text="{DynamicResource NetworkExplanation}" Style="{StaticResource Caption}" Margin="8"/>
-                </StackPanel>
-            </TabItem>
-            <TabItem Header="{DynamicResource TabDevices}">
-                <ScrollViewer><StackPanel Margin="8"><TextBlock x:Name="PeerAvailability" Style="{StaticResource Metric}"/><TextBlock x:Name="PeerIdentity"/><TextBlock x:Name="PeerLastSeen" Style="{StaticResource Caption}"/>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource RemoteSummary}" FontWeight="SemiBold"/><TextBlock x:Name="PeerSummary" FontFamily="Consolas" Margin="0,8,0,0"/></StackPanel></Border>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource RemoteMemoryTrend}" FontWeight="SemiBold"/><local:MemoryTrendControl x:Name="RemoteMemoryTrend" Height="130" Margin="0,8,0,0"/></StackPanel></Border>
-                </StackPanel></ScrollViewer>
-            </TabItem>
-            <TabItem Header="{DynamicResource TabSettings}">
-                <ScrollViewer><StackPanel Margin="8">
-                    <TextBlock Text="{DynamicResource Sampling}" FontWeight="SemiBold"/><ComboBox x:Name="SamplingModeBox" DisplayMemberPath="Name" Margin="0,6,0,12"/>
-                    <TextBlock Text="{DynamicResource Language}" FontWeight="SemiBold"/><ComboBox x:Name="LanguageBox" DisplayMemberPath="Name" Margin="0,6,0,12"/>
-                    <TextBlock Text="{DynamicResource ThisDeviceName}" FontWeight="SemiBold"/><TextBox x:Name="DeviceNameBox" MaxLength="80" Margin="0,6,0,12"/>
-                    <CheckBox x:Name="PeerEnabledCheck" Content="{DynamicResource EnablePeer}" Margin="0,2,0,12"/>
-                    <TextBlock Text="{DynamicResource ListenPrivate}" FontWeight="SemiBold"/><ComboBox x:Name="ListenAddressBox" Margin="0,6,0,12"/>
-                    <TextBlock Text="{DynamicResource PeerAddress}" FontWeight="SemiBold"/><TextBox x:Name="PeerAddressBox" Margin="0,6,0,12"/>
-                    <TextBlock Text="{DynamicResource PairingSecret}" FontWeight="SemiBold"/><PasswordBox x:Name="SecretBox" Margin="0,6,0,4" AutomationProperties.Name="{DynamicResource PairingSecretAccessible}"/>
-                    <TextBlock Text="{DynamicResource SecretHint}" Style="{StaticResource Caption}"/>
-                    <WrapPanel Margin="0,6,0,10"><Button Content="{DynamicResource Generate}" Click="GenerateSecret_Click"/><Button Content="{DynamicResource Copy}" Click="CopySecret_Click"/></WrapPanel>
-                    <WrapPanel><Button Content="{DynamicResource Save}" Click="SaveSettings_Click"/><Button Content="{DynamicResource TestConnection}" Click="TestConnection_Click"/></WrapPanel>
-                    <TextBlock x:Name="SettingsStatus" Margin="4,8"/>
-                    <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{DynamicResource NetworkSafety}" FontWeight="SemiBold"/><TextBlock Text="{DynamicResource FirewallNote}" Margin="0,8,0,0"/></StackPanel></Border>
-                </StackPanel></ScrollViewer>
-            </TabItem>
-        </TabControl>
-        <TextBlock x:Name="FooterStatus" Grid.Row="2" Margin="8,6,8,0" Style="{StaticResource Caption}"/>
-    </Grid>
+    </Border>
 </Window>

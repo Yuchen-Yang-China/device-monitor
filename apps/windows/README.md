@@ -25,7 +25,7 @@ dotnet run --project src/DeviceMonitor.App/DeviceMonitor.App.csproj
 
 ## 功能
 
-- 三段压力条托盘图标与 CPU、内存、网络 tooltip
+- 三段压力条托盘图标与 CPU、内存、网络 tooltip；左键切换靠近任务栏的浮层，右键打开菜单
 - CPU、内存、温度和网络详情；本机与远端内存 5 分钟趋势
 - 简体中文与英文，可在 Settings/设置中即时切换并持久化
 - Balanced、Low power、Responsive 三档采样

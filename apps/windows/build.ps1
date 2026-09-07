@@ -22,6 +22,6 @@ if ($Publish) {
     & $dotnetExecutable publish src/DeviceMonitor.App/DeviceMonitor.App.csproj --configuration Release --runtime win-x64 --self-contained true --output $resolvedPublishDirectory
     if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
 
-    & $dotnetExecutable build installer/DeviceMonitor.Setup/DeviceMonitor.Setup.wixproj --configuration Release -p:PublishDirectory=$resolvedPublishDirectory
+    & $dotnetExecutable build installer/DeviceMonitor.Setup/DeviceMonitor.Setup.wixproj --configuration Release --no-incremental -p:PublishDirectory=$resolvedPublishDirectory
     if ($LASTEXITCODE -ne 0) { throw 'installer build failed' }
 }

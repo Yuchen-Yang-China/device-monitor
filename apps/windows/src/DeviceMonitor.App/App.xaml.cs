@@ -11,13 +11,13 @@ public partial class App : System.Windows.Application
         base.OnStartup(e); _runtime = new AppRuntime(); Localization.Apply(_runtime.Settings.Language); _runtime.StartMonitoring();
         _window = new MainWindow(_runtime); MainWindow = _window;
         _tray = new TrayController(_runtime, ShowOrHideWindow, ShutdownApplicationAsync);
-        if (e.Args.Contains("--show", StringComparer.OrdinalIgnoreCase)) { _window.Show(); _window.Activate(); }
+        if (e.Args.Contains("--show", StringComparer.OrdinalIgnoreCase)) _window.ShowNearTaskbar();
         try { await _runtime.ApplyPeerSettingsAsync(); } catch (Exception exception) { _runtime.PeerConfigurationError = exception.Message; }
     }
     private void ShowOrHideWindow()
     {
         if (_window is null) return;
-        if (_window.IsVisible) _window.Hide(); else { _window.Show(); _window.Activate(); }
+        _window.ToggleNearTaskbar();
     }
     private async void ShutdownApplicationAsync()
     {

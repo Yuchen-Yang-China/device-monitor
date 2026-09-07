@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using DeviceMonitor.Core;
@@ -39,10 +40,33 @@ public partial class MainWindow : Window
     }
 
     private void PeerChanged() => Dispatcher.BeginInvoke(Refresh);
+    public void ToggleNearTaskbar()
+    {
+        if (IsVisible) { Hide(); return; }
+        ShowNearTaskbar();
+    }
+
+    public void ShowNearTaskbar()
+    {
+        PositionNearTaskbar(); Show(); Activate();
+    }
+
+    private void PositionNearTaskbar()
+    {
+        var cursor = System.Windows.Forms.Cursor.Position;
+        var screen = System.Windows.Forms.Screen.FromPoint(cursor);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        Left = screen.WorkingArea.Right / dpi.DpiScaleX - Width - 10;
+        Top = screen.WorkingArea.Bottom / dpi.DpiScaleY - Height - 10;
+    }
+
     private void Refresh()
     {
         var value = _runtime.LocalStore.Snapshot;
         HeaderNetworkText.Text = $"↑ {Rate(value.Network.UploadBytesPerSecond)}  ↓ {Rate(value.Network.DownloadBytesPerSecond)}";
+        UpdatePressureBar(HeaderCpuBar, value.Cpu.UtilizationPct, value.Cpu.State);
+        UpdatePressureBar(HeaderMemoryBar, value.Memory.UsedPct, value.Memory.State);
+        UpdatePressureBar(HeaderThermalBar, value.Thermal.AverageCelsius, value.Thermal.State);
         OverviewCpuValue.Text = Percent(value.Cpu.UtilizationPct); OverviewCpuState.Text = State(value.Cpu.State);
         OverviewMemoryValue.Text = Percent(value.Memory.UsedPct); OverviewMemoryState.Text = State(value.Memory.State);
         OverviewThermalValue.Text = value.Thermal.AverageCelsius is { } cpuTemperature ? $"{cpuTemperature:0.0} °C" :
@@ -51,7 +75,10 @@ public partial class MainWindow : Window
         OverviewThermalState.Text = value.Thermal.State == HealthState.Unavailable && value.Thermal.GpuCelsius is not null ? Localization.Text("GpuOnlyStatus") : State(value.Thermal.State);
         OverviewNetworkValue.Text = $"↑ {Rate(value.Network.UploadBytesPerSecond)}\n↓ {Rate(value.Network.DownloadBytesPerSecond)}";
         OverviewNetworkState.Text = State(value.Network.State);
+        OverviewCpuState.Foreground = StateBrush(value.Cpu.State); OverviewMemoryState.Foreground = StateBrush(value.Memory.State);
+        OverviewThermalState.Foreground = StateBrush(value.Thermal.State); OverviewNetworkState.Foreground = StateBrush(value.Network.State);
         CpuValue.Text = Percent(value.Cpu.UtilizationPct); CpuState.Text = State(value.Cpu.State);
+        CpuState.Foreground = StateBrush(value.Cpu.State);
         CpuBreakdown.Text = $"{Localization.Text("User"),-8}{Percent(value.Cpu.UserPct),7}\n{Localization.Text("System"),-8}{Percent(value.Cpu.SystemPct),7}\n{Localization.Text("Idle"),-8}{Percent(value.Cpu.IdlePct),7}";
         CpuTopology.Text = string.Format(Localization.Text("CpuTopologyFormat"), value.Cpu.LogicalProcessors);
         CpuProcesses.ItemsSource = value.TopProcesses.OrderByDescending(p => p.CpuPct ?? -1).Take(3)
@@ -60,18 +87,20 @@ public partial class MainWindow : Window
             .Select(p => $"{Trim(p.Name, 20),-20} {Bytes(p.WorkingSetBytes),10}").ToArray();
         MemoryValue.Text = value.Memory.UsedBytes is { } used && value.Memory.TotalBytes is { } total ? $"{Bytes(used)} / {Bytes(total)}" : Localization.Text("StateCollecting");
         MemoryState.Text = $"{State(value.Memory.State)} · {Percent(value.Memory.UsedPct)}";
+        MemoryState.Foreground = StateBrush(value.Memory.State);
         var trend = _runtime.LocalStore.MemoryTrend; LocalMemoryTrend.Points = trend; LocalMemoryTrend.InvalidateVisual();
         MemoryStats.Text = trend.Count == 0 ? Localization.Text("StateCollecting") : string.Format(Localization.Text("AveragePeakFormat"), trend.Average(p => p.Value), trend.Max(p => p.Value));
         ThermalValue.Text = value.Thermal.AverageCelsius is { } cpuTemp ? $"{cpuTemp:0.0} °C" :
             value.Thermal.GpuCelsius is { } gpuTemp ? $"GPU {gpuTemp:0.0} °C" :
             value.Thermal.StorageCelsius is { } storageTemp ? $"{storageTemp:0.0} °C" : Localization.Text("StateUnavailable");
         ThermalState.Text = value.Thermal.State == HealthState.Unavailable && value.Thermal.GpuCelsius is not null ? Localization.Text("GpuOnlyStatus") : State(value.Thermal.State);
+        ThermalState.Foreground = StateBrush(value.Thermal.State);
         var needsElevation = value.Thermal.AverageCelsius is null && value.Thermal.HottestCelsius is null && !IsAdministrator();
         RestartElevatedButton.Visibility = needsElevation ? Visibility.Visible : Visibility.Collapsed;
         var sensorLines = $"{Localization.Text("CpuAverage"),-12}{Temperature(value.Thermal.AverageCelsius)}\n{Localization.Text("CpuHottest"),-12}{Temperature(value.Thermal.HottestCelsius)}\n{Localization.Text("GpuTemperature"),-12}{Temperature(value.Thermal.GpuCelsius)}\n{Localization.Text("Storage"),-12}{Temperature(value.Thermal.StorageCelsius)}";
         var hasAnyTemperature = value.Thermal.AverageCelsius is not null || value.Thermal.HottestCelsius is not null || value.Thermal.GpuCelsius is not null || value.Thermal.StorageCelsius is not null;
         ThermalDetails.Text = hasAnyTemperature ? sensorLines + (needsElevation ? $"\n\n{Localization.Text("SensorsNeedAdmin")}" : string.Empty) : Localization.Text(needsElevation ? "SensorsNeedAdmin" : "NoSensors");
-        NetworkState.Text = State(value.Network.State); NetworkRates.Text = $"↑ {Rate(value.Network.UploadBytesPerSecond)}\n↓ {Rate(value.Network.DownloadBytesPerSecond)}";
+        NetworkState.Text = State(value.Network.State); NetworkState.Foreground = StateBrush(value.Network.State); NetworkRates.Text = $"↑ {Rate(value.Network.UploadBytesPerSecond)}\n↓ {Rate(value.Network.DownloadBytesPerSecond)}";
         NetworkSession.Text = $"{Localization.Text("Uploaded"),-12}{Bytes(value.Network.SessionUploadBytes)}\n{Localization.Text("Downloaded"),-12}{Bytes(value.Network.SessionDownloadBytes)}";
         RefreshPeer(); FooterStatus.Text = string.Format(Localization.Text("UpdatedFormat"), value.CapturedAt.ToLocalTime().ToString("T"), State(value.Cpu.State), State(value.Memory.State), State(value.Thermal.State));
     }
@@ -140,6 +169,9 @@ public partial class MainWindow : Window
     private void OpenMemory_Click(object sender, RoutedEventArgs e) => Tabs.SelectedIndex = 2;
     private void OpenThermal_Click(object sender, RoutedEventArgs e) => Tabs.SelectedIndex = 3;
     private void OpenNetwork_Click(object sender, RoutedEventArgs e) => Tabs.SelectedIndex = 4;
+    private void Hide_Click(object sender, RoutedEventArgs e) => Hide();
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e) { if (e.Key == Key.Escape) { Hide(); e.Handled = true; } }
+    private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed) DragMove(); }
     private void Window_Closing(object? sender, CancelEventArgs e) { e.Cancel = true; Hide(); }
     private void Window_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) => _runtime.Monitor.ProcessDetailActive = IsVisible && Tabs.SelectedIndex is 1 or 2;
 
@@ -149,6 +181,18 @@ public partial class MainWindow : Window
     private static string Temperature(double? value) => value is null ? Localization.Text("StateUnavailable") : $"{value:0.0} °C";
     private static string State(HealthState value) => value switch { HealthState.Normal => Localization.Text("StateNormal"), HealthState.Elevated => Localization.Text("StateAttention"), HealthState.Critical => Localization.Text("StateCritical"), HealthState.Collecting => Localization.Text("StateCollecting"), HealthState.Unavailable => Localization.Text("StateUnavailable"), _ => Localization.Text("StateStale") };
     private static string UiState(string value) => value switch { MetricStates.Normal => Localization.Text("StateNormal"), MetricStates.Elevated => Localization.Text("StateAttention"), MetricStates.Critical => Localization.Text("StateCritical"), MetricStates.Collecting => Localization.Text("StateCollecting"), MetricStates.Unavailable => Localization.Text("StateUnavailable"), _ => Localization.Text("StateStale") };
+    private static System.Windows.Media.Brush StateBrush(HealthState value) => value switch
+    {
+        HealthState.Normal => new SolidColorBrush(System.Windows.Media.Color.FromRgb(2, 122, 72)),
+        HealthState.Elevated => new SolidColorBrush(System.Windows.Media.Color.FromRgb(181, 71, 8)),
+        HealthState.Critical => new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 35, 24)),
+        _ => new SolidColorBrush(System.Windows.Media.Color.FromRgb(102, 112, 133))
+    };
+    private static void UpdatePressureBar(System.Windows.Shapes.Rectangle bar, double? value, HealthState state)
+    {
+        bar.Height = value is null ? 4 : Math.Max(4, Math.Round(20 * Math.Clamp(value.Value, 0, 100) / 100));
+        bar.Fill = StateBrush(state);
+    }
     private static bool IsAdministrator()
     {
         using var identity = WindowsIdentity.GetCurrent(); return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);

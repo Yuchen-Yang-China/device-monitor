@@ -26,6 +26,17 @@ enum MetricLevel: Int, Comparable, CaseIterable {
         }
     }
 
+    func label(language: AppLanguage) -> String {
+        switch self {
+        case .normal: return language.text("Normal", "正常")
+        case .elevated: return language.text("Attention", "注意")
+        case .critical: return language.text("Critical", "严重")
+        case .sampling: return language.text("Collecting", "正在采集")
+        case .unavailable: return language.text("Unavailable", "不可用")
+        case .stale: return language.text("Out of date", "已过期")
+        }
+    }
+
     var color: NSColor {
         switch self {
         case .normal: return .systemGreen
@@ -298,6 +309,15 @@ enum MetricKind: String, Identifiable, CaseIterable {
         }
     }
 
+    func title(language: AppLanguage) -> String {
+        switch self {
+        case .cpu: return "CPU"
+        case .memory: return language.text("Memory", "内存")
+        case .thermal: return language.text(HardwareInfo.temperatureTitle, "SoC 温度")
+        case .network: return language.text("Network", "网络")
+        }
+    }
+
     var symbol: String {
         switch self {
         case .cpu: return "cpu"
@@ -343,6 +363,22 @@ enum MenuDisplayMode: String, CaseIterable, Identifiable {
         case .minimal: return "Pressure bars only"
         }
     }
+
+    func title(language: AppLanguage) -> String {
+        switch self {
+        case .full: return language.text("Full", "完整")
+        case .compact: return language.text("Compact", "紧凑")
+        case .minimal: return language.text("Minimal", "最简")
+        }
+    }
+
+    func detail(language: AppLanguage) -> String {
+        switch self {
+        case .full: return language.text("Wider status item with spaced network rates", "较宽的菜单栏项目，网络速率留有间距")
+        case .compact: return language.text("Tighter status item with compact rates", "更紧凑的菜单栏项目和网络速率")
+        case .minimal: return language.text("Pressure bars only", "仅显示压力状态条")
+        }
+    }
 }
 
 enum SamplingProfile: String, CaseIterable, Identifiable {
@@ -366,6 +402,24 @@ enum SamplingProfile: String, CaseIterable, Identifiable {
         case .lowPower: return "Network 2s · system 10s · temperature 30s · details 60s"
         case .responsive: return "Network 1s · system 2s · temperature 10s · details 15s"
         }
+    }
+
+    func title(language: AppLanguage) -> String {
+        switch self {
+        case .balanced: return language.text("Balanced", "均衡")
+        case .lowPower: return language.text("Low power", "低功耗")
+        case .responsive: return language.text("Responsive", "高响应")
+        }
+    }
+
+    func detail(language: AppLanguage) -> String {
+        let value = detail
+        return language.usesChinese ? value
+            .replacingOccurrences(of: "Network", with: "网络")
+            .replacingOccurrences(of: "system", with: "系统")
+            .replacingOccurrences(of: "temperature", with: "温度")
+            .replacingOccurrences(of: "details", with: "详情")
+            : value
     }
 
     var networkInterval: TimeInterval {

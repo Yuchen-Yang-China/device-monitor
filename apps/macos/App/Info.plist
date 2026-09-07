@@ -28,5 +28,7 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Mac Monitor uses the local network only when you enable peer monitoring to exchange read-only device status with your paired computer.</string>
 </dict>
 </plist>

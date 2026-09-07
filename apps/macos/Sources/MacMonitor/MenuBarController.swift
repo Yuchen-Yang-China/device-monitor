@@ -74,23 +74,36 @@ enum MenuBarImageRenderer {
 @MainActor
 final class MenuBarController: NSObject, NSPopoverDelegate {
     private enum PopoverLayout {
-        static let overviewSize = NSSize(width: 360, height: 300)
+        static let overviewSize = NSSize(width: 360, height: 382)
         static let detailSize = NSSize(width: 360, height: 400)
     }
 
     private let store: MonitorStore
     private let settings: AppSettings
     private let monitor: SystemMonitor
+    private let peerConfiguration: PeerConfiguration
+    private let peerStatusStore: PeerStatusStore
+    private let peerCoordinator: PeerCoordinator
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private var settingsWindowController: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
     private var lastRenderSignature = ""
 
-    init(store: MonitorStore, settings: AppSettings, monitor: SystemMonitor) {
+    init(
+        store: MonitorStore,
+        settings: AppSettings,
+        monitor: SystemMonitor,
+        peerConfiguration: PeerConfiguration,
+        peerStatusStore: PeerStatusStore,
+        peerCoordinator: PeerCoordinator
+    ) {
         self.store = store
         self.settings = settings
         self.monitor = monitor
+        self.peerConfiguration = peerConfiguration
+        self.peerStatusStore = peerStatusStore
+        self.peerCoordinator = peerCoordinator
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -101,7 +114,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         statusItem.button?.imageScaling = .scaleNone
         statusItem.button?.showsBorderOnlyWhileMouseInside = true
         statusItem.button?.setAccessibilityLabel("Mac Monitor")
-        statusItem.button?.setAccessibilityHelp("Open the Mac Monitor dashboard")
+        statusItem.button?.setAccessibilityHelp(peerConfiguration.language.text("Open the Mac Monitor dashboard", "打开 Mac Monitor 仪表盘"))
         updateStatusItemSize()
 
         popover.behavior = .transient
@@ -184,6 +197,16 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 self?.monitor.setSamplingProfile(profile)
             }
             .store(in: &cancellables)
+
+        peerConfiguration.$language
+            .receive(on: RunLoop.main)
+            .sink { [weak self] language in
+                self?.statusItem.button?.setAccessibilityHelp(
+                    language.text("Open the Mac Monitor dashboard", "打开 Mac Monitor 仪表盘")
+                )
+                self?.updateStatusImage(force: true)
+            }
+            .store(in: &cancellables)
     }
 
     private func updateStatusItemSize() {
@@ -220,41 +243,52 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     private var statusSummary: String {
+        let language = peerConfiguration.language
         let snapshot = store.snapshot
         let network = snapshot.network
         let upload: String
         let download: String
         if network.isStale {
-            upload = network.uploadText == "Unavailable" ? "unavailable" : "last known \(network.uploadText)"
-            download = network.downloadText == "Unavailable" ? "unavailable" : "last known \(network.downloadText)"
+            upload = network.uploadText == "Unavailable"
+                ? language.text("unavailable", "不可用")
+                : language.text("last known \(network.uploadText)", "最后有效值 \(network.uploadText)")
+            download = network.downloadText == "Unavailable"
+                ? language.text("unavailable", "不可用")
+                : language.text("last known \(network.downloadText)", "最后有效值 \(network.downloadText)")
         } else {
             upload = network.uploadText
             download = network.downloadText
         }
         let networkStatus: String
         if network.isStale {
-            networkStatus = "network out of date"
+            networkStatus = language.text("network out of date", "网络数据已过期")
         } else if network.uploadBytesPerSecond == nil, network.downloadBytesPerSecond == nil {
-            networkStatus = "network unavailable"
+            networkStatus = language.text("network unavailable", "网络数据不可用")
         } else {
-            networkStatus = "network current"
+            networkStatus = language.text("network current", "网络数据正常")
         }
         let cpu = freshnessValue(snapshot.cpu.primaryText, level: snapshot.cpu.level)
         let memory = freshnessValue(snapshot.memory.primaryText, level: snapshot.memory.level)
         let thermal = freshnessValue(snapshot.thermal.primaryText, level: snapshot.thermal.level)
-        return "CPU \(cpu), Memory \(memory), \(HardwareInfo.temperatureTitle) \(thermal), \(networkStatus), upload \(upload), download \(download)"
+        return language.text(
+            "CPU \(cpu), Memory \(memory), \(HardwareInfo.temperatureTitle) \(thermal), \(networkStatus), upload \(upload), download \(download)",
+            "CPU \(cpu)，内存 \(memory)，SoC 温度 \(thermal)，\(networkStatus)，上传 \(upload)，下载 \(download)"
+        )
     }
 
     private func freshnessValue(_ value: String, level: MetricLevel) -> String {
+        let language = peerConfiguration.language
         switch level {
         case .stale:
-            return value == "--" || value == "Unavailable" ? "unavailable" : "last known \(value)"
+            return value == "--" || value == "Unavailable"
+                ? language.text("unavailable", "不可用")
+                : language.text("last known \(value)", "最后有效值 \(value)")
         case .unavailable:
-            return "unavailable"
+            return language.text("unavailable", "不可用")
         case .sampling:
-            return "collecting"
+            return language.text("collecting", "正在采集")
         case .normal, .elevated, .critical:
-            return value == "Unavailable" || value == "--" ? "unavailable" : value
+            return value == "Unavailable" || value == "--" ? language.text("unavailable", "不可用") : value
         }
     }
 
@@ -276,12 +310,19 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         guard let button = button ?? statusItem.button else { return }
         let dashboard = DashboardView(
             store: store,
+            peerConfiguration: peerConfiguration,
+            peerStore: peerStatusStore,
             onOpenSettings: { [weak self] in self?.showSettings() },
             onQuit: { NSApplication.shared.terminate(nil) },
             onDetailDemand: { [weak self] metric in
                 guard let self else { return }
                 self.monitor.setDetailDemand(metric)
                 self.updatePopoverSize(for: metric)
+            },
+            onPeerDetailDemand: { [weak self] isShowing in
+                guard let self else { return }
+                self.monitor.setDetailDemand(nil)
+                self.updatePopoverSize(for: nil, peerDetail: isShowing)
             }
         )
         let controller = NSHostingController(rootView: dashboard)
@@ -300,8 +341,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         }
     }
 
-    private func updatePopoverSize(for metric: MetricKind?) {
-        let size = metric == nil ? PopoverLayout.overviewSize : PopoverLayout.detailSize
+    private func updatePopoverSize(for metric: MetricKind?, peerDetail: Bool = false) {
+        let size = metric == nil && !peerDetail ? PopoverLayout.overviewSize : PopoverLayout.detailSize
         guard popover.contentSize != size else { return }
 
         popover.contentSize = size
@@ -350,11 +391,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         monitor.setDetailDemand(nil)
         popover.performClose(nil)
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController(settings: settings, onResetNetworkTotals: { [weak self] in
-                self?.monitor.resetNetworkTotals()
-            }) { [weak self] in
-                self?.returnToOverview()
-            }
+            settingsWindowController = SettingsWindowController(
+                settings: settings,
+                peerConfiguration: peerConfiguration,
+                peerStatusStore: peerStatusStore,
+                onResetNetworkTotals: { [weak self] in self?.monitor.resetNetworkTotals() },
+                onTestPeer: { [weak self] in self?.peerCoordinator.testConnection() },
+                onBack: { [weak self] in self?.returnToOverview() }
+            )
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
@@ -371,12 +415,20 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        let settingsItem = NSMenuItem(title: "Settings", action: #selector(openSettingsFromMenu), keyEquivalent: "")
+        let settingsItem = NSMenuItem(
+            title: peerConfiguration.language.text("Settings", "设置"),
+            action: #selector(openSettingsFromMenu),
+            keyEquivalent: ""
+        )
         settingsItem.target = self
         menu.addItem(settingsItem)
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quitFromMenu), keyEquivalent: "q")
+        let quitItem = NSMenuItem(
+            title: peerConfiguration.language.text("Quit", "退出"),
+            action: #selector(quitFromMenu),
+            keyEquivalent: "q"
+        )
         quitItem.target = self
         menu.addItem(quitItem)
         menu.popUp(positioning: nil, at: NSPoint(x: button.bounds.midX, y: button.bounds.minY), in: button)

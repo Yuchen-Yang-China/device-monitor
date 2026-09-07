@@ -1,3 +1,26 @@
-.build/
+# macOS / SwiftPM
+**/.build/
+**/DerivedData/
+**/*.app/
+*.dSYM/
+
+# Windows / .NET / Visual Studio
+**/bin/
+**/obj/
+**/.vs/
+**/TestResults/
+*.user
+*.suo
+
+# Generated distribution artifacts
+*.zip
+*.dmg
+*.pkg
+*.msix
+*.msixbundle
+*.appinstaller
+
+# Editors and operating systems
 .DS_Store
-MacMonitor.app/
+Thumbs.db
+Desktop.ini

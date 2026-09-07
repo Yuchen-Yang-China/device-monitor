@@ -1,0 +1,27 @@
+name: macOS
+
+on:
+  push:
+    paths:
+      - "apps/macos/**"
+      - "docs/**"
+      - ".github/workflows/macos.yml"
+  pull_request:
+    paths:
+      - "apps/macos/**"
+      - "docs/**"
+      - ".github/workflows/macos.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: apps/macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify
+        run: ./Scripts/verify.sh

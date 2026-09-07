@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://device-monitor.local/schemas/status-v1.schema.json",
+  "title": "Device Monitor Peer Status v1",
+  "type": "object",
+  "required": ["apiVersion", "sequence", "capturedAt", "device", "capabilities", "metrics"],
+  "properties": {
+    "apiVersion": { "const": 1 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "capturedAt": { "$ref": "#/$defs/timestamp" },
+    "device": {
+      "type": "object",
+      "required": ["id", "name", "platform", "osVersion", "appVersion", "startedAt"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "platform": { "enum": ["macos", "windows"] },
+        "osVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "appVersion": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "startedAt": { "$ref": "#/$defs/timestamp" }
+      },
+      "additionalProperties": true
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["cpuBreakdown", "loadAverage", "hybridCoreTopology", "memoryBreakdown", "swap", "temperatureSensors", "osThermalState", "wifiSignal"],
+      "properties": {
+        "cpuBreakdown": { "type": "boolean" },
+        "loadAverage": { "type": "boolean" },
+        "hybridCoreTopology": { "type": "boolean" },
+        "memoryBreakdown": { "type": "boolean" },
+        "swap": { "type": "boolean" },
+        "temperatureSensors": { "type": "boolean" },
+        "osThermalState": { "type": "boolean" },
+        "wifiSignal": { "type": "boolean" },
+        "gpuTemperature": { "type": "boolean" },
+        "storageTemperature": { "type": "boolean" },
+        "ssdTemperature": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["cpu", "memory", "thermal", "network"],
+      "properties": {
+        "cpu": { "$ref": "#/$defs/cpu" },
+        "memory": { "$ref": "#/$defs/memory" },
+        "thermal": { "$ref": "#/$defs/thermal" },
+        "network": { "$ref": "#/$defs/network" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "state": {
+      "enum": ["normal", "elevated", "critical", "collecting", "unavailable", "stale"]
+    },
+    "nullableNumber": { "type": ["number", "null"] },
+    "nullableNonNegativeNumber": { "type": ["number", "null"], "minimum": 0 },
+    "nullablePercentage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "nullableBytes": { "type": ["integer", "null"], "minimum": 0 },
+    "nullableTimestamp": {
+      "anyOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }]
+    },
+    "cpu": {
+      "type": "object",
+      "required": ["state", "sampledAt", "utilizationPct", "userPct", "systemPct", "idlePct", "loadAverage1", "loadAverage5", "loadAverage15", "performanceCores", "efficiencyCores", "hybridTopology"],
+      "properties": {
+        "state": { "$ref": "#/$defs/state" },
+        "sampledAt": { "$ref": "#/$defs/nullableTimestamp" },
+        "utilizationPct": { "$ref": "#/$defs/nullablePercentage" },
+        "userPct": { "$ref": "#/$defs/nullablePercentage" },
+        "systemPct": { "$ref": "#/$defs/nullablePercentage" },
+        "idlePct": { "$ref": "#/$defs/nullablePercentage" },
+        "loadAverage1": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "loadAverage5": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "loadAverage15": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "performanceCores": { "type": "integer", "minimum": 0 },
+        "efficiencyCores": { "type": "integer", "minimum": 0 },
+        "hybridTopology": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "memory": {
+      "type": "object",
+      "required": ["state", "sampledAt", "usedBytes", "totalBytes", "usedPct", "wiredBytes", "compressedBytes", "cachedBytes", "swapUsedBytes", "swapTotalBytes"],
+      "properties": {
+        "state": { "$ref": "#/$defs/state" },
+        "sampledAt": { "$ref": "#/$defs/nullableTimestamp" },
+        "usedBytes": { "$ref": "#/$defs/nullableBytes" },
+        "totalBytes": { "$ref": "#/$defs/nullableBytes" },
+        "usedPct": { "$ref": "#/$defs/nullablePercentage" },
+        "wiredBytes": { "$ref": "#/$defs/nullableBytes" },
+        "compressedBytes": { "$ref": "#/$defs/nullableBytes" },
+        "cachedBytes": { "$ref": "#/$defs/nullableBytes" },
+        "swapUsedBytes": { "$ref": "#/$defs/nullableBytes" },
+        "swapTotalBytes": { "$ref": "#/$defs/nullableBytes" }
+      },
+      "additionalProperties": true
+    },
+    "thermal": {
+      "type": "object",
+      "required": ["state", "sampledAt", "osState", "averageCelsius", "hottestCelsius", "storageCelsius"],
+      "properties": {
+        "state": { "$ref": "#/$defs/state" },
+        "sampledAt": { "$ref": "#/$defs/nullableTimestamp" },
+        "osState": { "enum": ["nominal", "fair", "serious", "critical", "unavailable"] },
+        "averageCelsius": { "$ref": "#/$defs/nullableNumber" },
+        "hottestCelsius": { "$ref": "#/$defs/nullableNumber" },
+        "storageCelsius": { "$ref": "#/$defs/nullableNumber" },
+        "gpuCelsius": { "$ref": "#/$defs/nullableNumber" },
+        "ssdCelsius": { "$ref": "#/$defs/nullableNumber" }
+      },
+      "additionalProperties": true
+    },
+    "network": {
+      "type": "object",
+      "required": ["state", "sampledAt", "uploadBytesPerSecond", "downloadBytesPerSecond", "sessionUploadBytes", "sessionDownloadBytes"],
+      "properties": {
+        "state": { "$ref": "#/$defs/state" },
+        "sampledAt": { "$ref": "#/$defs/nullableTimestamp" },
+        "uploadBytesPerSecond": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "downloadBytesPerSecond": { "$ref": "#/$defs/nullableNonNegativeNumber" },
+        "sessionUploadBytes": { "type": "integer", "minimum": 0 },
+        "sessionDownloadBytes": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  }
+}

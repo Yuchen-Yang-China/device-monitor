@@ -6,7 +6,7 @@
             "type": "shell",
             "command": "swift",
             "args": ["build", "-c", "debug"],
-            "options": {"cwd": "${workspaceFolder}"},
+            "options": {"cwd": "${workspaceFolder}/apps/macos"},
             "problemMatcher": ["$swiftc"],
             "group": {"kind": "build", "isDefault": true}
         },
@@ -15,7 +15,7 @@
             "type": "shell",
             "command": "swift",
             "args": ["build", "-c", "release"],
-            "options": {"cwd": "${workspaceFolder}"},
+            "options": {"cwd": "${workspaceFolder}/apps/macos"},
             "problemMatcher": ["$swiftc"],
             "group": "build"
         }

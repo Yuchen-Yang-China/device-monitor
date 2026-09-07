@@ -1,0 +1,70 @@
+{
+  "apiVersion": 1,
+  "sequence": 42,
+  "capturedAt": "2026-09-06T08:00:00.123Z",
+  "device": {
+    "id": "64bd9fc8-3cdf-45f7-9dd6-57d628f15e2a",
+    "name": "Yuchen-MacBook",
+    "platform": "macos",
+    "osVersion": "15.6.1",
+    "appVersion": "0.1.0",
+    "startedAt": "2026-09-06T07:30:00.000Z"
+  },
+  "capabilities": {
+    "cpuBreakdown": true,
+    "loadAverage": true,
+    "hybridCoreTopology": true,
+    "memoryBreakdown": true,
+    "swap": true,
+    "temperatureSensors": true,
+    "osThermalState": true,
+    "wifiSignal": true,
+    "gpuTemperature": false,
+    "storageTemperature": true
+  },
+  "metrics": {
+    "cpu": {
+      "state": "normal",
+      "sampledAt": "2026-09-06T08:00:00.000Z",
+      "utilizationPct": 23.4,
+      "userPct": 15.2,
+      "systemPct": 8.2,
+      "idlePct": 76.6,
+      "loadAverage1": 1.21,
+      "loadAverage5": 1.08,
+      "loadAverage15": 0.92,
+      "performanceCores": 4,
+      "efficiencyCores": 4,
+      "hybridTopology": true
+    },
+    "memory": {
+      "state": "elevated",
+      "sampledAt": "2026-09-06T08:00:00.000Z",
+      "usedBytes": 12884901888,
+      "totalBytes": 17179869184,
+      "usedPct": 75.0,
+      "wiredBytes": 3221225472,
+      "compressedBytes": 1073741824,
+      "cachedBytes": 2147483648,
+      "swapUsedBytes": 0,
+      "swapTotalBytes": 0
+    },
+    "thermal": {
+      "state": "normal",
+      "sampledAt": "2026-09-06T07:59:55.000Z",
+      "osState": "nominal",
+      "averageCelsius": 54.2,
+      "hottestCelsius": 61.8,
+      "storageCelsius": 42.0,
+      "gpuCelsius": null
+    },
+    "network": {
+      "state": "normal",
+      "sampledAt": "2026-09-06T08:00:00.000Z",
+      "uploadBytesPerSecond": 12450.5,
+      "downloadBytesPerSecond": 820300.0,
+      "sessionUploadBytes": 10485760,
+      "sessionDownloadBytes": 209715200
+    }
+  }
+}

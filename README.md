@@ -1,97 +1,46 @@
-# Mac Monitor
+# Device Monitor
 
-Mac Monitor is a native macOS menu bar monitor for the metrics that are useful
-at a glance: CPU utilization and load, memory pressure and swap, thermal state,
-and traffic on the primary physical network interface. Details are collected
-on demand so the menu bar path stays quiet when the popover is closed.
+Device Monitor 是一个个人使用的跨平台系统监控项目。macOS 与 Windows 应用各自遵循原生平台设计，同时通过同一份 Peer Status Protocol v1 在可信局域网或加密组网中交换只读状态。
 
-## Requirements and support
+## 仓库结构
 
-- macOS 14 or newer.
-- Apple Silicon (`arm64`) is the primary supported runtime. The HID sensor
-  bridge reports Apple Silicon SoC/SSD temperatures when the matching services
-  are present.
-- Intel (`x86_64`) builds are supported for CPU, memory, and network metrics;
-  the Apple Silicon temperature bridge may report `Unavailable`. A universal
-  binary can therefore run on both architectures, but temperature parity is
-  not promised on Intel.
-
-The project has no network dependencies, privileged helper, third-party
-runtime, or required environment variables for local development.
-
-## Run from SwiftPM
-
-```sh
-swift run
+```text
+apps/
+  macos/              macOS 菜单栏应用（Swift / SwiftUI）
+  windows/            Windows 托盘应用
+docs/                 PRD、跨平台协议、JSON Schema 与联调说明
+shared/assets/         两端共用的图标与视觉素材
+.github/workflows/    持续集成
 ```
 
-The first temperature query may be unavailable on a machine without the
-matching HID service. CPU, memory, and network readings continue independently.
-
-## Build an app bundle
-
-The build script asks SwiftPM for its actual binary directory, so it works with
-native and multi-architecture build layouts:
+## macOS
 
 ```sh
-./Scripts/build-app.sh                         # native release, MacMonitor.app
-./Scripts/build-app.sh --arch arm64            # Apple Silicon
-./Scripts/build-app.sh --arch x86_64           # Intel
-./Scripts/build-app.sh --arch universal        # arm64 + x86_64
-./Scripts/build-app.sh --configuration debug --output /tmp/MacMonitor.app
-```
-
-Every bundle is signed and checked with `codesign --verify --deep --strict`.
-Without a signing identity the script uses a timestamp-free ad-hoc signature,
-which is verifiable locally but is not a distribution signature. For a release
-build, provide a Developer ID identity either as an option or an environment
-variable:
-
-```sh
-MACMONITOR_SIGNING_IDENTITY="Developer ID Application: Example (TEAMID)" \
-  ./Scripts/build-app.sh --arch universal
-```
-
-Developer ID signing, hardened runtime, notarization, and stapling require an
-Apple Developer account and credentials outside this repository. When an
-identity is supplied, the script also runs `spctl --assess`; ad-hoc builds do
-not claim Gatekeeper approval.
-
-## Sampling profiles
-
-The default `Balanced` profile samples network traffic every 1 second, CPU and
-memory every 5 seconds, and thermal data every 15 seconds. `Low power` changes
-those intervals to 2, 10, and 30 seconds. `Responsive` uses 1, 2, and 10
-seconds. The profile controls polling cadence, not the accuracy of the
-underlying operating-system counters.
-
-Five minutes of trend points are retained in memory. Process lists and Wi-Fi
-metadata are sampled only while their corresponding detail view is open; Wi-Fi
-metadata refreshes at a slower cadence than traffic counters. No history is
-written to disk.
-
-## Permissions and privacy
-
-Network counters use local interface statistics. Network details show signal
-strength and channel when CoreWLAN exposes them, without reading the SSID or
-requesting Location Services. Mac Monitor does not send process names or
-metrics over the network.
-
-## Validation
-
-The repository's read-only checks can be run with:
-
-```sh
-./Scripts/verify.sh
-swift build -c debug -Xswiftc -warnings-as-errors
+cd apps/macos
 swift test
-zsh -n Scripts/build-app.sh
-plutil -lint App/Info.plist
+./Scripts/build-app.sh
 ```
 
-`Scripts/verify.sh` is the local static gate and does not require a signing
-identity. Set `MACMONITOR_VERIFY_APP=1` when an existing `MacMonitor.app`
-bundle should also be checked. `swift test` exercises pure formatting, sampling-profile, thermal-state, and
-trend calculations without requiring a GUI session or physical sensor. Build
-and signing checks should be run on the target macOS architecture; notarization
-cannot be validated without a real Developer ID identity.
+完整说明见 [apps/macos/README.md](apps/macos/README.md)。
+
+## Windows
+
+Windows 工程统一放在 `apps/windows/`，不要在该目录内再次执行 `git init`。Windows 端开始或继续开发前，应先阅读：
+
+- [产品规格](docs/PRODUCT_SPEC.zh-CN.md)
+- [Peer Status Protocol v1](docs/PEER_SYNC_PROTOCOL_V1.zh-CN.md)
+- [JSON Schema](docs/status-v1.schema.json)
+- [Windows Codex 交接说明](docs/WINDOWS_CODEX_HANDOFF.zh-CN.md)
+
+Windows 图标素材位于 [shared/assets/windows](shared/assets/windows)。
+
+## 协作规则
+
+- `docs/PEER_SYNC_PROTOCOL_V1.zh-CN.md` 和 `docs/status-v1.schema.json` 是两端互通合同；破坏兼容性的修改必须升级协议版本。
+- 不提交 `.build`、`bin`、`obj`、`.app`、安装包、ZIP 或 IDE 本地状态。
+- 不提交配对密钥、证书、签名凭据、设备地址或其他本机配置。
+- macOS 与 Windows 的功能改动应分别通过各自测试后再推送。
+
+## 网络安全
+
+Peer v1 使用 HMAC 做认证和完整性校验，但不加密状态内容。只应在可信家庭局域网或 Tailscale/WireGuard 等加密隧道中使用，禁止将 `48621/TCP` 直接映射到公网。

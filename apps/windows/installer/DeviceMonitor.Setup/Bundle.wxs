@@ -2,7 +2,7 @@
      xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
   <Bundle Name="Device Monitor"
           Manufacturer="Device Monitor"
-          Version="0.2.1.0"
+          Version="0.3.0.0"
           UpgradeCode="2A1D26A2-55B7-4246-A0C8-ECD21A33EB6B"
           IconSourceFile="..\..\..\..\shared\assets\windows\DeviceMonitor.ico">
     <BootstrapperApplication>

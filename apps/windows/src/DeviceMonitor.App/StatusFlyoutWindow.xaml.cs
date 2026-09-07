@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using DeviceMonitor.Core;
+using Forms = System.Windows.Forms;
 
 namespace DeviceMonitor.App;
 
@@ -26,18 +27,18 @@ public partial class StatusFlyoutWindow : Window, IDisposable
         OnSnapshot(_runtime.LocalStore.Snapshot);
     }
 
-    public void ToggleNear(TaskbarPillWindow anchor)
+    public void ToggleNear(System.Drawing.Point anchorPoint)
     {
         CancelDeactivateHide();
         if (IsVisible && !_hiding) HideAnimated();
-        else ShowNear(anchor);
+        else ShowNear(anchorPoint);
     }
 
-    public void ShowNear(TaskbarPillWindow anchor)
+    public void ShowNear(System.Drawing.Point anchorPoint)
     {
         CancelDeactivateHide();
         _hiding = false;
-        PositionNear(anchor);
+        PositionNear(anchorPoint);
         _slide.BeginAnimation(TranslateTransform.YProperty, null);
         BeginAnimation(OpacityProperty, null);
         _slide.Y = 28;
@@ -79,13 +80,20 @@ public partial class StatusFlyoutWindow : Window, IDisposable
         BeginAnimation(OpacityProperty, fade);
     }
 
-    private void PositionNear(TaskbarPillWindow anchor)
+    private void PositionNear(System.Drawing.Point anchorPoint)
     {
-        Left = anchor.Left + anchor.Width - Width;
-        var workArea = SystemParameters.WorkArea;
-        Top = anchor.Top <= workArea.Top + 8 ? anchor.Top + anchor.Height + 8 : anchor.Top - Height - 8;
-        Left = Math.Clamp(Left, workArea.Left + 4, workArea.Right - Width - 4);
-        Top = Math.Clamp(Top, workArea.Top + 4, workArea.Bottom - Height - 4);
+        var screen = Forms.Screen.FromPoint(anchorPoint);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var workArea = new Rect(
+            screen.WorkingArea.Left / dpi.DpiScaleX,
+            screen.WorkingArea.Top / dpi.DpiScaleY,
+            screen.WorkingArea.Width / dpi.DpiScaleX,
+            screen.WorkingArea.Height / dpi.DpiScaleY);
+        var anchorX = anchorPoint.X / dpi.DpiScaleX;
+        var anchorY = anchorPoint.Y / dpi.DpiScaleY;
+        Left = Math.Clamp(anchorX - Width / 2, workArea.Left + 4, workArea.Right - Width - 4);
+        var above = anchorY - Height - 8;
+        Top = above >= workArea.Top + 4 ? above : Math.Min(anchorY + 8, workArea.Bottom - Height - 4);
     }
 
     private void OnLanguageChanged() => Dispatcher.BeginInvoke(() =>

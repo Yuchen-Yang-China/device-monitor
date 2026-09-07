@@ -1,7 +1,7 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="Device Monitor"
            Manufacturer="Device Monitor"
-           Version="0.2.1"
+           Version="0.3.0"
            UpgradeCode="CAFBBF84-DD7E-471C-8AE7-369834B63DF3"
            Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of Device Monitor is already installed." />

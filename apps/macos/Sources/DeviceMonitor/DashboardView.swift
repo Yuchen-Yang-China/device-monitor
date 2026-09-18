@@ -69,7 +69,14 @@ struct DashboardView: View {
             height: (isInDetail ? Layout.detailHeight : Layout.overviewHeight) + Layout.padding * 2,
             alignment: .topLeading
         )
-        .background(VisualEffectBackground(material: .popover))
+        .background {
+            if #available(macOS 26.0, *) {
+                Color.clear
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            } else {
+                VisualEffectBackground(material: .popover)
+            }
+        }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedMetric)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isShowingPeerDetail)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedPeerMetric)
@@ -164,14 +171,16 @@ struct DashboardView: View {
 
             HStack {
                 Button(action: onOpenSettings) {
-                    Image(systemName: "gearshape")
+                    Label(peerConfiguration.language.text("Settings", "设置"), systemImage: "gearshape")
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel(peerConfiguration.language.text("Settings", "设置"))
                 .accessibilityHint(peerConfiguration.language.text("Open Device Monitor settings", "打开 Device Monitor 设置"))
                 .help(peerConfiguration.language.text("Settings", "设置"))
                 Spacer()
-                Button(peerConfiguration.language.text("Quit", "退出"), action: onQuit)
+                Button(action: onQuit) {
+                    Label(peerConfiguration.language.text("Quit", "退出"), systemImage: "power")
+                }
                     .buttonStyle(.borderless)
                     .accessibilityHint(peerConfiguration.language.text("Quit Device Monitor", "退出 Device Monitor"))
             }

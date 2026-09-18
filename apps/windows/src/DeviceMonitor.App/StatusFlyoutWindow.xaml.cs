@@ -11,7 +11,6 @@ public partial class StatusFlyoutWindow : Window, IDisposable
 {
     private readonly AppRuntime _runtime;
     private readonly TranslateTransform _slide = new();
-    private CancellationTokenSource? _deactivateHide;
     private bool _hiding;
     private bool _disposed;
 
@@ -29,14 +28,12 @@ public partial class StatusFlyoutWindow : Window, IDisposable
 
     public void ToggleNear(System.Drawing.Point anchorPoint)
     {
-        CancelDeactivateHide();
         if (IsVisible && !_hiding) HideAnimated();
         else ShowNear(anchorPoint);
     }
 
     public void ShowNear(System.Drawing.Point anchorPoint)
     {
-        CancelDeactivateHide();
         _hiding = false;
         PositionNear(anchorPoint);
         _slide.BeginAnimation(TranslateTransform.YProperty, null);
@@ -135,29 +132,13 @@ public partial class StatusFlyoutWindow : Window, IDisposable
         bar.Fill = StatusPresentation.Brush(state);
     }
 
-    private async void Window_Deactivated(object? sender, EventArgs e)
+    private void Window_Deactivated(object? sender, EventArgs e)
     {
-        CancelDeactivateHide();
-        var pending = new CancellationTokenSource();
-        _deactivateHide = pending;
-        try
-        {
-            await Task.Delay(90, pending.Token);
-            if (_deactivateHide == pending) HideAnimated();
-        }
-        catch (OperationCanceledException) { }
-        finally
-        {
-            if (_deactivateHide == pending) _deactivateHide = null;
-            pending.Dispose();
-        }
+        // A tray flyout follows the standard transient-popup behavior:
+        // clicking anywhere outside it dismisses it immediately.
+        HideAnimated();
     }
 
-    private void CancelDeactivateHide()
-    {
-        _deactivateHide?.Cancel();
-        _deactivateHide = null;
-    }
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e) { if (e.Key == Key.Escape) { HideAnimated(); e.Handled = true; } }
 
     public void Dispose()

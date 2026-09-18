@@ -8,7 +8,7 @@ enum MenuBarImageRenderer {
         return mode == .compact ? 56 : 82
     }
 
-    static func render(snapshot: SystemSnapshot, displayMode: MenuDisplayMode, showNetwork: Bool, width: CGFloat) -> NSImage {
+    static func render(snapshot: SystemSnapshot, displayMode: MenuDisplayMode, showNetwork: Bool, width: CGFloat, appearance: NSAppearance) -> NSImage {
         let image = NSImage(size: NSSize(width: width, height: NSStatusBar.system.thickness))
         image.lockFocus()
         defer { image.unlockFocus() }
@@ -21,9 +21,10 @@ enum MenuBarImageRenderer {
 
         guard showNetwork, displayMode != .minimal else { return image }
         let font = NSFont.monospacedDigitSystemFont(ofSize: displayMode == .compact ? 8.5 : 10, weight: .medium)
+        let textColor: NSColor = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .white : .black
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.labelColor
+            .foregroundColor: textColor
         ]
         let separator = displayMode == .compact ? "" : " "
         // A failed read must not look like a live rate in the status item.
@@ -88,6 +89,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     private var settingsWindowController: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
+    private var outsideClickMonitors: [Any] = []
     private var lastRenderSignature = ""
 
     init(
@@ -125,6 +127,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
+        outsideClickMonitors.forEach { NSEvent.removeMonitor($0) }
+        outsideClickMonitors.removeAll()
         monitor.setDetailDemand(nil)
         popover.contentViewController = nil
     }
@@ -231,7 +235,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 snapshot: store.snapshot,
                 displayMode: settings.displayMode,
                 showNetwork: settings.showNetwork,
-                width: width
+                width: width,
+                appearance: statusItem.button?.effectiveAppearance ?? NSApp.effectiveAppearance
             )
         }
 
@@ -306,6 +311,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         showPopover(relativeTo: button)
     }
 
+    private func installOutsideClickMonitors() {
+        outsideClickMonitors.forEach { NSEvent.removeMonitor($0) }
+        outsideClickMonitors.removeAll()
+        if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in
+            self?.popover.performClose(nil)
+        }) { outsideClickMonitors.append(monitor) }
+    }
+
     private func showPopover(relativeTo button: NSStatusBarButton? = nil) {
         guard let button = button ?? statusItem.button else { return }
         let dashboard = DashboardView(
@@ -329,6 +342,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.contentViewController = controller
         popover.contentSize = PopoverLayout.overviewSize
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        installOutsideClickMonitors()
         // The delegate callback normally runs before the popover is visible,
         // but this immediate pass also covers AppKit versions that attach the
         // hosting view a little later in the show transaction.
@@ -420,6 +434,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             action: #selector(openSettingsFromMenu),
             keyEquivalent: ""
         )
+        settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: settingsItem.title)
         settingsItem.target = self
         menu.addItem(settingsItem)
         menu.addItem(.separator())
@@ -429,6 +444,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             action: #selector(quitFromMenu),
             keyEquivalent: "q"
         )
+        quitItem.image = NSImage(systemSymbolName: "power", accessibilityDescription: quitItem.title)
         quitItem.target = self
         menu.addItem(quitItem)
         menu.popUp(positioning: nil, at: NSPoint(x: button.bounds.midX, y: button.bounds.minY), in: button)
